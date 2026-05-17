@@ -110,6 +110,43 @@ async function guardarClaveAuth(email: string, clave: string, nombre: string) {
   }
 }
 
+async function guardarPerfilSeguro({
+  email,
+  nombre,
+  rol,
+  activo,
+}: {
+  email: string;
+  nombre: string;
+  rol: Role;
+  activo: boolean;
+}) {
+  const supabaseAdmin = createAdminClient();
+  const supabase = supabaseAdmin ?? (await createServerClient());
+
+  const { error } = await supabase
+    .from("perfiles_usuario")
+    .upsert({ email, nombre, rol, activo }, { onConflict: "email" });
+
+  if (error) {
+    volverConfiguracion("error", `No pude guardar el perfil: ${error.message}`);
+  }
+}
+
+async function cambiarEstadoPerfilSeguro(email: string, activo: boolean) {
+  const supabaseAdmin = createAdminClient();
+  const supabase = supabaseAdmin ?? (await createServerClient());
+
+  const { error } = await supabase
+    .from("perfiles_usuario")
+    .update({ activo })
+    .eq("email", email);
+
+  if (error) {
+    volverConfiguracion("error", `No pude cambiar el estado: ${error.message}`);
+  }
+}
+
 async function obtenerRolActual() {
   const supabase = await createServerClient();
   const {
@@ -174,14 +211,7 @@ async function guardarPerfil(formData: FormData) {
     await guardarClaveAuth(email, clave, nombre);
   }
 
-  const supabase = await createServerClient();
-  const { error } = await supabase
-    .from("perfiles_usuario")
-    .upsert({ email, nombre, rol, activo }, { onConflict: "email" });
-
-  if (error) {
-    volverConfiguracion("error", `No pude guardar el perfil: ${error.message}`);
-  }
+  await guardarPerfilSeguro({ email, nombre, rol, activo });
 
   revalidatePath("/configuracion");
   volverConfiguracion(
@@ -214,15 +244,7 @@ async function cambiarEstadoPerfil(formData: FormData) {
     volverConfiguracion("error", "No puedes desactivar tu propio acceso.");
   }
 
-  const supabase = await createServerClient();
-  const { error } = await supabase
-    .from("perfiles_usuario")
-    .update({ activo })
-    .eq("email", email);
-
-  if (error) {
-    volverConfiguracion("error", `No pude cambiar el estado: ${error.message}`);
-  }
+  await cambiarEstadoPerfilSeguro(email, activo);
 
   revalidatePath("/configuracion");
   volverConfiguracion("ok", activo ? "Usuario activado." : "Usuario bloqueado.");
@@ -252,17 +274,7 @@ async function actualizarPerfilUsuario(formData: FormData) {
     volverConfiguracion("error", "No puedes desactivar tu propio acceso.");
   }
 
-  const supabase = await createServerClient();
-  const { error } = await supabase
-    .from("perfiles_usuario")
-    .upsert({ email, nombre, rol, activo }, { onConflict: "email" });
-
-  if (error) {
-    volverConfiguracion(
-      "error",
-      `No pude actualizar el perfil: ${error.message}`
-    );
-  }
+  await guardarPerfilSeguro({ email, nombre, rol, activo });
 
   revalidatePath("/configuracion");
   volverConfiguracion("ok", "Perfil actualizado correctamente.");
