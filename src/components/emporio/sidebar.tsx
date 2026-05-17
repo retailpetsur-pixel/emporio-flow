@@ -4,11 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
-import { isRole, itemsByRole, roleLabels, type Role } from "@/lib/permissions";
+import {
+  allPermissionItems,
+  isRole,
+  itemsByRole,
+  roleLabels,
+  type PermissionItem,
+  type Role,
+} from "@/lib/permissions";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [role, setRole] = useState<Role>("trabajador");
+  const [customItems, setCustomItems] = useState<PermissionItem[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +44,22 @@ export default function Sidebar() {
 
       if (isRole(rol)) {
         setRole(rol);
+
+        const { data: permisos } = await supabase
+          .from("permisos_roles")
+          .select("modulos")
+          .eq("rol", rol)
+          .maybeSingle();
+
+        const modulos = Array.isArray(permisos?.modulos)
+          ? permisos.modulos.map(String)
+          : null;
+
+        if (modulos) {
+          setCustomItems(
+            allPermissionItems.filter((item) => modulos.includes(item.href))
+          );
+        }
       } else {
         setRole("trabajador");
       }
@@ -46,7 +70,10 @@ export default function Sidebar() {
     loadRole();
   }, []);
 
-  const items = useMemo(() => itemsByRole[role], [role]);
+  const items = useMemo(
+    () => customItems ?? itemsByRole[role],
+    [customItems, role]
+  );
 
   return (
     <aside className="hidden xl:flex xl:w-72 xl:min-h-screen xl:shrink-0 xl:flex-col xl:sticky xl:top-0 bg-slate-950 text-white border-r border-slate-900">

@@ -115,3 +115,9 @@ export function isRole(value: string): value is Role {
 export function canAccess(role: Role, href: string) {
   return itemsByRole[role].some((item) => item.href === href);
 }
+
+export function normalizePermissionHrefs(hrefs: string[]) {
+  const allowed = new Set(allPermissionItems.map((item) => item.href));
+
+  return hrefs.filter((href) => allowed.has(href));
+}
