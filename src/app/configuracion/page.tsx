@@ -123,6 +123,68 @@ async function cambiarEstadoPerfil(formData: FormData) {
   revalidatePath("/configuracion");
 }
 
+async function actualizarPerfilUsuario(formData: FormData) {
+  "use server";
+
+  const { email: emailActual, role } = await obtenerRolActual();
+
+  if (role !== "admin" && role !== "gerencia") {
+    throw new Error("No tienes permisos para modificar perfiles.");
+  }
+
+  const email = String(formData.get("email") || "")
+    .trim()
+    .toLowerCase();
+  const nombre = String(formData.get("nombre") || "").trim();
+  const rol = String(formData.get("rol") || "");
+  const activo = formData.get("activo") === "on";
+
+  if (!email || !nombre || !isRole(rol)) {
+    throw new Error("Nombre, correo o perfil no válido.");
+  }
+
+  if (email === emailActual.toLowerCase() && !activo) {
+    throw new Error("No puedes desactivar tu propio acceso.");
+  }
+
+  const supabase = await createServerClient();
+  const { error } = await supabase
+    .from("perfiles_usuario")
+    .update({ nombre, rol, activo })
+    .eq("email", email);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/configuracion");
+}
+
+async function enviarCambioClave(formData: FormData) {
+  "use server";
+
+  const { role } = await obtenerRolActual();
+
+  if (role !== "admin" && role !== "gerencia") {
+    throw new Error("No tienes permisos para enviar cambios de clave.");
+  }
+
+  const email = String(formData.get("email") || "")
+    .trim()
+    .toLowerCase();
+
+  if (!email) {
+    throw new Error("Correo no válido.");
+  }
+
+  const supabase = await createServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 function StatCard({
   label,
   value,
@@ -319,10 +381,9 @@ export default async function ConfiguracionPage() {
                 </form>
 
                 <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-                  Esta pantalla asigna permisos dentro del ERP. Para que la
-                  persona pueda iniciar sesión, su cuenta también debe existir
-                  en Supabase Auth; eso lo dejamos listo para conectar de forma
-                  segura antes de publicar.
+                  Esta pantalla asigna permisos dentro del ERP. La clave vive
+                  en Supabase Auth; desde la lista puedes enviar un correo para
+                  que cada usuario cree o cambie su clave de forma segura.
                 </div>
               </div>
 
@@ -336,14 +397,14 @@ export default async function ConfiguracionPage() {
                   </p>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-[720px] w-full border-collapse text-left">
+                <div className="erp-scroll">
+                  <table className="min-w-[920px] w-full border-collapse text-left">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-5 py-4">Usuario</th>
                         <th className="px-5 py-4">Perfil</th>
                         <th className="px-5 py-4">Estado</th>
-                        <th className="px-5 py-4 text-right">Acción</th>
+                        <th className="px-5 py-4 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -360,39 +421,103 @@ export default async function ConfiguracionPage() {
                         perfilesList.map((perfil) => (
                           <tr key={perfil.email}>
                             <td className="px-5 py-4">
-                              <p className="font-semibold text-slate-950">
-                                {perfil.nombre}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {perfil.email}
-                              </p>
-                            </td>
-                            <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                              {roleLabels[perfil.rol]}
-                            </td>
-                            <td className="px-5 py-4">
-                              <StatusBadge activo={perfil.activo} />
-                            </td>
-                            <td className="px-5 py-4 text-right">
-                              <form action={cambiarEstadoPerfil}>
+                              <form
+                                id={`perfil-${perfil.email}`}
+                                action={actualizarPerfilUsuario}
+                                className="grid gap-2"
+                              >
                                 <input
                                   type="hidden"
                                   name="email"
                                   value={perfil.email}
                                 />
                                 <input
-                                  type="hidden"
-                                  name="activo"
-                                  value={String(!perfil.activo)}
+                                  name="nombre"
+                                  defaultValue={perfil.nombre}
+                                  disabled={!puedeConfigurar}
+                                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-950 outline-none focus:border-emerald-400 disabled:bg-slate-100"
                                 />
+                                <p className="text-xs text-slate-500">
+                                  {perfil.email}
+                                </p>
+                              </form>
+                            </td>
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                              <select
+                                name="rol"
+                                form={`perfil-${perfil.email}`}
+                                defaultValue={perfil.rol}
+                                disabled={!puedeConfigurar}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 disabled:bg-slate-100"
+                              >
+                                {roles.map((rol) => (
+                                  <option key={rol} value={rol}>
+                                    {roleLabels[rol]}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="grid gap-2">
+                                <StatusBadge activo={perfil.activo} />
+                                <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                  <input
+                                    name="activo"
+                                    form={`perfil-${perfil.email}`}
+                                    type="checkbox"
+                                    defaultChecked={perfil.activo}
+                                    disabled={!puedeConfigurar}
+                                  />
+                                  Activo
+                                </label>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="grid gap-2">
                                 <button
                                   type="submit"
+                                  form={`perfil-${perfil.email}`}
                                   disabled={!puedeConfigurar}
-                                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                  className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                                 >
-                                  {perfil.activo ? "Bloquear" : "Activar"}
+                                  Guardar
                                 </button>
-                              </form>
+
+                                <form action={enviarCambioClave}>
+                                  <input
+                                    type="hidden"
+                                    name="email"
+                                    value={perfil.email}
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={!puedeConfigurar}
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                  >
+                                    Enviar cambio clave
+                                  </button>
+                                </form>
+
+                                <form action={cambiarEstadoPerfil}>
+                                  <input
+                                    type="hidden"
+                                    name="email"
+                                    value={perfil.email}
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="activo"
+                                    value={String(!perfil.activo)}
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={!puedeConfigurar}
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                  >
+                                    {perfil.activo ? "Bloquear" : "Activar"}
+                                  </button>
+                                </form>
+                              </div>
                             </td>
                           </tr>
                         ))
