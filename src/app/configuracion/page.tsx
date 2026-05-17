@@ -1,5 +1,6 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { supabase as publicSupabase } from "@/lib/supabase";
 import {
@@ -20,6 +21,29 @@ type PerfilUsuario = {
   rol: Role;
   activo: boolean;
 };
+
+type ConfiguracionPageProps = {
+  searchParams?: Promise<{
+    estado?: string;
+    mensaje?: string;
+  }>;
+};
+
+function volverConfiguracion(estado: "ok" | "error", mensaje: string): never {
+  redirect(
+    `/configuracion?estado=${estado}&mensaje=${encodeURIComponent(mensaje)}`
+  );
+}
+
+function esUsuarioYaRegistrado(message: string) {
+  const normalizado = message.toLowerCase();
+
+  return (
+    normalizado.includes("already") ||
+    normalizado.includes("registered") ||
+    normalizado.includes("duplicate")
+  );
+}
 
 async function obtenerRolActual() {
   const supabase = await createServerClient();
@@ -62,7 +86,7 @@ async function guardarPerfil(formData: FormData) {
   const { role } = await obtenerRolActual();
 
   if (role !== "admin" && role !== "gerencia") {
-    throw new Error("No tienes permisos para modificar perfiles.");
+    volverConfiguracion("error", "No tienes permisos para modificar perfiles.");
   }
 
   const email = String(formData.get("email") || "")
@@ -71,9 +95,39 @@ async function guardarPerfil(formData: FormData) {
   const nombre = String(formData.get("nombre") || "").trim();
   const rol = String(formData.get("rol") || "");
   const activo = formData.get("activo") === "on";
+  const clave = String(formData.get("clave") || "").trim();
 
   if (!email || !nombre || !isRole(rol)) {
-    throw new Error("Nombre, correo o perfil no válido.");
+    volverConfiguracion("error", "Nombre, correo o perfil no válido.");
+  }
+
+  if (clave && clave.length < 6) {
+    volverConfiguracion("error", "La clave debe tener al menos 6 caracteres.");
+  }
+
+  if (clave) {
+    const supabaseAdmin = createAdminClient();
+
+    if (!supabaseAdmin) {
+      volverConfiguracion(
+        "error",
+        "Falta configurar SUPABASE_SERVICE_ROLE_KEY para crear usuarios con clave desde el ERP."
+      );
+    }
+
+    const { error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: clave,
+      email_confirm: true,
+      user_metadata: { nombre },
+    });
+
+    if (authError && !esUsuarioYaRegistrado(authError.message)) {
+      volverConfiguracion(
+        "error",
+        `No pude crear el acceso: ${authError.message}`
+      );
+    }
   }
 
   const supabase = await createServerClient();
@@ -82,10 +136,16 @@ async function guardarPerfil(formData: FormData) {
     .upsert({ email, nombre, rol, activo }, { onConflict: "email" });
 
   if (error) {
-    throw new Error(error.message);
+    volverConfiguracion("error", `No pude guardar el perfil: ${error.message}`);
   }
 
   revalidatePath("/configuracion");
+  volverConfiguracion(
+    "ok",
+    clave
+      ? "Usuario y perfil guardados correctamente."
+      : "Perfil guardado correctamente."
+  );
 }
 
 async function cambiarEstadoPerfil(formData: FormData) {
@@ -94,7 +154,7 @@ async function cambiarEstadoPerfil(formData: FormData) {
   const { email: emailActual, role } = await obtenerRolActual();
 
   if (role !== "admin" && role !== "gerencia") {
-    throw new Error("No tienes permisos para modificar perfiles.");
+    volverConfiguracion("error", "No tienes permisos para modificar perfiles.");
   }
 
   const email = String(formData.get("email") || "")
@@ -103,11 +163,11 @@ async function cambiarEstadoPerfil(formData: FormData) {
   const activo = formData.get("activo") === "true";
 
   if (!email) {
-    throw new Error("Correo no válido.");
+    volverConfiguracion("error", "Correo no válido.");
   }
 
   if (email === emailActual.toLowerCase() && !activo) {
-    throw new Error("No puedes desactivar tu propio acceso.");
+    volverConfiguracion("error", "No puedes desactivar tu propio acceso.");
   }
 
   const supabase = await createServerClient();
@@ -117,10 +177,11 @@ async function cambiarEstadoPerfil(formData: FormData) {
     .eq("email", email);
 
   if (error) {
-    throw new Error(error.message);
+    volverConfiguracion("error", `No pude cambiar el estado: ${error.message}`);
   }
 
   revalidatePath("/configuracion");
+  volverConfiguracion("ok", activo ? "Usuario activado." : "Usuario bloqueado.");
 }
 
 async function actualizarPerfilUsuario(formData: FormData) {
@@ -129,7 +190,7 @@ async function actualizarPerfilUsuario(formData: FormData) {
   const { email: emailActual, role } = await obtenerRolActual();
 
   if (role !== "admin" && role !== "gerencia") {
-    throw new Error("No tienes permisos para modificar perfiles.");
+    volverConfiguracion("error", "No tienes permisos para modificar perfiles.");
   }
 
   const email = String(formData.get("email") || "")
@@ -140,11 +201,11 @@ async function actualizarPerfilUsuario(formData: FormData) {
   const activo = formData.get("activo") === "on";
 
   if (!email || !nombre || !isRole(rol)) {
-    throw new Error("Nombre, correo o perfil no válido.");
+    volverConfiguracion("error", "Nombre, correo o perfil no válido.");
   }
 
   if (email === emailActual.toLowerCase() && !activo) {
-    throw new Error("No puedes desactivar tu propio acceso.");
+    volverConfiguracion("error", "No puedes desactivar tu propio acceso.");
   }
 
   const supabase = await createServerClient();
@@ -154,10 +215,14 @@ async function actualizarPerfilUsuario(formData: FormData) {
     .eq("email", email);
 
   if (error) {
-    throw new Error(error.message);
+    volverConfiguracion(
+      "error",
+      `No pude actualizar el perfil: ${error.message}`
+    );
   }
 
   revalidatePath("/configuracion");
+  volverConfiguracion("ok", "Perfil actualizado correctamente.");
 }
 
 async function enviarCambioClave(formData: FormData) {
@@ -166,7 +231,10 @@ async function enviarCambioClave(formData: FormData) {
   const { role } = await obtenerRolActual();
 
   if (role !== "admin" && role !== "gerencia") {
-    throw new Error("No tienes permisos para enviar cambios de clave.");
+    volverConfiguracion(
+      "error",
+      "No tienes permisos para enviar cambios de clave."
+    );
   }
 
   const email = String(formData.get("email") || "")
@@ -174,15 +242,20 @@ async function enviarCambioClave(formData: FormData) {
     .toLowerCase();
 
   if (!email) {
-    throw new Error("Correo no válido.");
+    volverConfiguracion("error", "Correo no válido.");
   }
 
   const supabase = await createServerClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email);
 
   if (error) {
-    throw new Error(error.message);
+    volverConfiguracion(
+      "error",
+      `No pude enviar el cambio de clave: ${error.message}`
+    );
   }
+
+  volverConfiguracion("ok", "Correo de cambio de clave enviado.");
 }
 
 function StatCard({
@@ -217,7 +290,12 @@ function StatusBadge({ activo }: { activo: boolean }) {
   );
 }
 
-export default async function ConfiguracionPage() {
+export default async function ConfiguracionPage({
+  searchParams,
+}: ConfiguracionPageProps) {
+  const params = await searchParams;
+  const mensaje = params?.mensaje;
+  const estado = params?.estado === "ok" ? "ok" : "error";
   const { role: currentRole } = await obtenerRolActual();
   const puedeConfigurar = currentRole === "admin" || currentRole === "gerencia";
 
@@ -280,6 +358,18 @@ export default async function ConfiguracionPage() {
               </div>
             ) : null}
 
+            {mensaje ? (
+              <div
+                className={`rounded-2xl border p-5 text-sm ${
+                  estado === "ok"
+                    ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                    : "border-red-100 bg-red-50 text-red-700"
+                }`}
+              >
+                {mensaje}
+              </div>
+            ) : null}
+
             <div className="grid gap-4 md:grid-cols-3">
               <StatCard
                 label="Perfiles creados"
@@ -309,7 +399,8 @@ export default async function ConfiguracionPage() {
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     Ingresa el correo del usuario y define qué tipo de acceso
-                    tendrá. Si el correo ya existe, se actualiza su perfil.
+                    tendrá. Si agregas una clave inicial, también se crea su
+                    acceso real para iniciar sesión.
                   </p>
                 </div>
 
@@ -360,6 +451,25 @@ export default async function ConfiguracionPage() {
                     </select>
                   </div>
 
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Clave inicial
+                    </label>
+                    <input
+                      name="clave"
+                      type="password"
+                      minLength={6}
+                      disabled={!puedeConfigurar}
+                      placeholder="Mínimo 6 caracteres"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400 disabled:bg-slate-100"
+                    />
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      Úsala solo al crear el acceso por primera vez. Después el
+                      usuario puede cambiarla desde el correo de cambio de
+                      clave.
+                    </p>
+                  </div>
+
                   <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
                     <input
                       name="activo"
@@ -376,14 +486,13 @@ export default async function ConfiguracionPage() {
                     disabled={!puedeConfigurar}
                     className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
-                    Guardar perfil
+                    Guardar usuario
                   </button>
                 </form>
 
                 <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
-                  Esta pantalla asigna permisos dentro del ERP. La clave vive
-                  en Supabase Auth; desde la lista puedes enviar un correo para
-                  que cada usuario cree o cambie su clave de forma segura.
+                  El perfil define permisos dentro del ERP. La clave se guarda
+                  en Supabase Auth; no se almacena en las tablas del sistema.
                 </div>
               </div>
 
