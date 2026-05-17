@@ -20,6 +20,7 @@ type PerfilUsuario = {
   nombre: string;
   rol: Role;
   activo: boolean;
+  tienePerfil: boolean;
 };
 
 type ConfiguracionPageProps = {
@@ -43,6 +44,70 @@ function esUsuarioYaRegistrado(message: string) {
     normalizado.includes("registered") ||
     normalizado.includes("duplicate")
   );
+}
+
+async function buscarUsuarioAuthPorEmail(
+  supabaseAdmin: NonNullable<ReturnType<typeof createAdminClient>>,
+  email: string
+) {
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+
+  if (error) {
+    return { userId: null, error: error.message };
+  }
+
+  const usuario = data.users.find(
+    (user) => user.email?.toLowerCase() === email.toLowerCase()
+  );
+
+  return { userId: usuario?.id ?? null, error: null };
+}
+
+async function guardarClaveAuth(email: string, clave: string, nombre: string) {
+  const supabaseAdmin = createAdminClient();
+
+  if (!supabaseAdmin) {
+    volverConfiguracion(
+      "error",
+      "Falta configurar SUPABASE_SERVICE_ROLE_KEY para crear o cambiar claves desde el ERP."
+    );
+  }
+
+  const { userId, error: buscarError } = await buscarUsuarioAuthPorEmail(
+    supabaseAdmin,
+    email
+  );
+
+  if (buscarError) {
+    volverConfiguracion("error", `No pude revisar usuarios Auth: ${buscarError}`);
+  }
+
+  if (userId) {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: clave,
+      user_metadata: { nombre },
+    });
+
+    if (error) {
+      volverConfiguracion("error", `No pude actualizar la clave: ${error.message}`);
+    }
+
+    return;
+  }
+
+  const { error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: clave,
+    email_confirm: true,
+    user_metadata: { nombre },
+  });
+
+  if (error && !esUsuarioYaRegistrado(error.message)) {
+    volverConfiguracion("error", `No pude crear el acceso: ${error.message}`);
+  }
 }
 
 async function obtenerRolActual() {
@@ -106,28 +171,7 @@ async function guardarPerfil(formData: FormData) {
   }
 
   if (clave) {
-    const supabaseAdmin = createAdminClient();
-
-    if (!supabaseAdmin) {
-      volverConfiguracion(
-        "error",
-        "Falta configurar SUPABASE_SERVICE_ROLE_KEY para crear usuarios con clave desde el ERP."
-      );
-    }
-
-    const { error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: clave,
-      email_confirm: true,
-      user_metadata: { nombre },
-    });
-
-    if (authError && !esUsuarioYaRegistrado(authError.message)) {
-      volverConfiguracion(
-        "error",
-        `No pude crear el acceso: ${authError.message}`
-      );
-    }
+    await guardarClaveAuth(email, clave, nombre);
   }
 
   const supabase = await createServerClient();
@@ -211,8 +255,7 @@ async function actualizarPerfilUsuario(formData: FormData) {
   const supabase = await createServerClient();
   const { error } = await supabase
     .from("perfiles_usuario")
-    .update({ nombre, rol, activo })
-    .eq("email", email);
+    .upsert({ email, nombre, rol, activo }, { onConflict: "email" });
 
   if (error) {
     volverConfiguracion(
@@ -258,6 +301,34 @@ async function enviarCambioClave(formData: FormData) {
   volverConfiguracion("ok", "Correo de cambio de clave enviado.");
 }
 
+async function cambiarClaveUsuario(formData: FormData) {
+  "use server";
+
+  const { role } = await obtenerRolActual();
+
+  if (role !== "admin" && role !== "gerencia") {
+    volverConfiguracion("error", "No tienes permisos para cambiar claves.");
+  }
+
+  const email = String(formData.get("email") || "")
+    .trim()
+    .toLowerCase();
+  const nombre = String(formData.get("nombre") || "").trim() || email;
+  const clave = String(formData.get("clave") || "").trim();
+
+  if (!email) {
+    volverConfiguracion("error", "Correo no válido.");
+  }
+
+  if (clave.length < 6) {
+    volverConfiguracion("error", "La nueva clave debe tener al menos 6 caracteres.");
+  }
+
+  await guardarClaveAuth(email, clave, nombre);
+
+  volverConfiguracion("ok", "Clave actualizada correctamente.");
+}
+
 function StatCard({
   label,
   value,
@@ -300,10 +371,13 @@ export default async function ConfiguracionPage({
   const puedeConfigurar = currentRole === "admin" || currentRole === "gerencia";
 
   const supabase = await createServerClient();
-  const { data: perfilesProtegidos, error: errorProtegido } = await supabase
-    .from("perfiles_usuario")
-    .select("email, nombre, rol, activo")
-    .order("email", { ascending: true });
+  const supabaseAdmin = puedeConfigurar ? createAdminClient() : null;
+  const consultaPerfiles = supabaseAdmin ?? supabase;
+  const { data: perfilesProtegidos, error: errorProtegido } =
+    await consultaPerfiles
+      .from("perfiles_usuario")
+      .select("email, nombre, rol, activo")
+      .order("email", { ascending: true });
 
   const { data: perfilesPublicos, error: errorPublico } =
     perfilesProtegidos && perfilesProtegidos.length > 0
@@ -325,10 +399,44 @@ export default async function ConfiguracionPage({
       nombre: String(perfil.nombre || perfil.email),
       rol: perfil.rol as Role,
       activo: Boolean(perfil.activo),
+      tienePerfil: true,
     }));
 
-  const activos = perfilesList.filter((perfil) => perfil.activo).length;
-  const administradores = perfilesList.filter(
+  const { data: usuariosAuth } = supabaseAdmin
+    ? await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      })
+    : { data: null };
+
+  const emailsConPerfil = new Set(
+    perfilesList.map((perfil) => perfil.email.toLowerCase())
+  );
+
+  const usuariosSinPerfil: PerfilUsuario[] = (usuariosAuth?.users ?? [])
+    .filter((usuario) => usuario.email)
+    .filter((usuario) => !emailsConPerfil.has(usuario.email!.toLowerCase()))
+    .map((usuario) => {
+      const nombre =
+        typeof usuario.user_metadata?.nombre === "string"
+          ? usuario.user_metadata.nombre
+          : usuario.email!;
+
+      return {
+        email: usuario.email!,
+        nombre,
+        rol: "trabajador" as Role,
+        activo: false,
+        tienePerfil: false,
+      };
+    });
+
+  const usuariosConfigurables = [...perfilesList, ...usuariosSinPerfil].sort(
+    (a, b) => a.email.localeCompare(b.email)
+  );
+
+  const activos = usuariosConfigurables.filter((perfil) => perfil.activo).length;
+  const administradores = usuariosConfigurables.filter(
     (perfil) => perfil.rol === "admin" || perfil.rol === "gerencia"
   ).length;
 
@@ -382,9 +490,9 @@ export default async function ConfiguracionPage({
                 helper="Pueden ver los módulos asignados."
               />
               <StatCard
-                label="Administración"
-                value={String(administradores)}
-                helper="Perfiles con acceso a configuración."
+                label="Accesos Auth"
+                value={String(usuariosAuth?.users.length ?? perfilesList.length)}
+                helper="Usuarios creados en Supabase Auth."
               />
             </div>
 
@@ -502,7 +610,9 @@ export default async function ConfiguracionPage({
                     Usuarios configurados
                   </h2>
                   <p className="mt-2 text-sm text-slate-500">
-                    Desde aquí puedes cambiar el perfil o bloquear accesos.
+                    Desde aquí puedes cambiar perfil, estado y clave. Los
+                    usuarios sin perfil aparecen bloqueados hasta que guardes
+                    sus permisos.
                   </p>
                 </div>
 
@@ -517,7 +627,7 @@ export default async function ConfiguracionPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {perfilesList.length === 0 ? (
+                      {usuariosConfigurables.length === 0 ? (
                         <tr>
                           <td
                             colSpan={4}
@@ -527,7 +637,7 @@ export default async function ConfiguracionPage({
                           </td>
                         </tr>
                       ) : (
-                        perfilesList.map((perfil) => (
+                        usuariosConfigurables.map((perfil) => (
                           <tr key={perfil.email}>
                             <td className="px-5 py-4">
                               <form
@@ -549,6 +659,11 @@ export default async function ConfiguracionPage({
                                 <p className="text-xs text-slate-500">
                                   {perfil.email}
                                 </p>
+                                {!perfil.tienePerfil ? (
+                                  <p className="text-xs font-semibold text-amber-600">
+                                    Sin perfil ERP
+                                  </p>
+                                ) : null}
                               </form>
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-700">
@@ -591,6 +706,34 @@ export default async function ConfiguracionPage({
                                 >
                                   Guardar
                                 </button>
+
+                                <form action={cambiarClaveUsuario} className="grid gap-2">
+                                  <input
+                                    type="hidden"
+                                    name="email"
+                                    value={perfil.email}
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="nombre"
+                                    value={perfil.nombre}
+                                  />
+                                  <input
+                                    name="clave"
+                                    type="password"
+                                    minLength={6}
+                                    placeholder="Nueva clave"
+                                    disabled={!puedeConfigurar}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-400 disabled:bg-slate-100"
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={!puedeConfigurar}
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                  >
+                                    Cambiar clave
+                                  </button>
+                                </form>
 
                                 <form action={enviarCambioClave}>
                                   <input
