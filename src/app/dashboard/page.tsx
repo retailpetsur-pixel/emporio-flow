@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 
-type Role = "admin" | "gerencia" | "supervisor" | "trabajador";
+type Role = "admin" | "gerencia" | "supervisor" | "trabajador" | "compras";
 
 function StatCard({
   title,
@@ -121,7 +121,10 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   const currentRole: Role =
-    perfilUsuario?.rol && ["admin", "gerencia", "supervisor", "trabajador"].includes(perfilUsuario.rol)
+    perfilUsuario?.rol &&
+    ["admin", "gerencia", "supervisor", "trabajador", "compras"].includes(
+      perfilUsuario.rol
+    )
       ? (perfilUsuario.rol as Role)
       : "trabajador";
   const [
@@ -330,6 +333,12 @@ export default async function DashboardPage() {
         href: "/reportes",
         metric: `${alertas.length} alertas`,
       },
+      {
+        title: "Configuración",
+        description: "Usuarios, perfiles y permisos del ERP.",
+        href: "/configuracion",
+        metric: "Admin",
+      },
     ],
     gerencia: [
       {
@@ -367,6 +376,12 @@ export default async function DashboardPage() {
         description: "Márgenes, costos y precios sugeridos.",
         href: "/recetas-costos",
         metric: "Estratégico",
+      },
+      {
+        title: "Configuración",
+        description: "Usuarios, perfiles y permisos del ERP.",
+        href: "/configuracion",
+        metric: "Gerencia",
       },
     ],
     supervisor: [
@@ -425,6 +440,26 @@ export default async function DashboardPage() {
         description: "Consulta atrasos, faltas y registros.",
         href: "/usuarios",
         metric: "Mi historial",
+      },
+    ],
+    compras: [
+      {
+        title: "Inventario",
+        description: "Stock, valorización y mínimos de insumos.",
+        href: "/inventario",
+        metric: `${productosList.length} ítems`,
+      },
+      {
+        title: "Compras",
+        description: "Registro de compras y actualización de costos.",
+        href: "/compras",
+        metric: `${comprasSugeridas} sugeridas`,
+      },
+      {
+        title: "Producción",
+        description: "Consulta operativa de producción.",
+        href: "/produccion",
+        metric: `${produccionList.length} registros`,
       },
     ],
   };

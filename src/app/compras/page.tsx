@@ -1,108 +1,194 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
+import { revalidatePath } from "next/cache";
 
-type PurchaseStatus = "pendiente" | "pedido" | "comprado" | "recibido";
 type Priority = "Alta" | "Media" | "Baja";
 
-type Producto = {
+type Insumo = {
   id: string;
   nombre: string;
-  tipo: string;
-  categoria: string;
-  stock_actual: number;
-  stock_minimo: number;
-  stock_maximo: number;
-  unidad: string | null;
-  estado: string;
+  familia_id: string | null;
+  unidad_uso: string | null;
+  unidad_referencia: string | null;
+  unidad_formato_compra: string | null;
+  cantidad_formato_compra: number | null;
+  precio_referencia: number | null;
+  costo_compra: number | null;
+  costo_unitario_uso: number | null;
+  stock_actual: number | null;
+  stock_minimo: number | null;
 };
 
-type PurchaseItem = {
-  id: string;
-  item: string;
-  mode: "Presencial" | "Proveedor";
-  supplier: string;
-  stock: string;
-  suggested: string;
-  priority: Priority;
-  status: PurchaseStatus;
-  category: string;
-};
-
-function definirModoCompra(categoria: string): "Presencial" | "Proveedor" {
-  const proveedorCats = ["Lácteos", "Panadería", "Bebidas", "Producción"];
-  return proveedorCats.includes(categoria) ? "Proveedor" : "Presencial";
+function money(v: number) {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(v || 0);
 }
 
-function definirProveedor(categoria: string): string {
-  const map: Record<string, string> = {
-    "Lácteos": "Lácteos Sur",
-    "Panadería": "Molino Central",
-    "Bebidas": "Distribuidora Norte",
-    "Producción": "Proveedor interno",
-    "Verduras": "Compra local",
-    "Carnes": "Carnicería mayorista",
-  };
+function normalizarUnidad(unidad: string) {
+  const u = unidad.trim().toLowerCase();
 
-  return map[categoria] ?? "Compra local";
+  if (["gr", "grs", "g", "gramo", "gramos"].includes(u)) return "grs";
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos"].includes(u)) return "kg";
+  if (["ml", "mililitro", "mililitros"].includes(u)) return "ml";
+  if (["lt", "lts", "litro", "litros"].includes(u)) return "litros";
+  if (["un", "unidad", "unidades", "u"].includes(u)) return "un";
+
+  return u;
 }
 
-function definirPrioridad(
-  stockActual: number,
-  stockMinimo: number
-): Priority {
+function factorCantidad(desde: string, hacia: string) {
+  const from = normalizarUnidad(desde);
+  const to = normalizarUnidad(hacia);
+
+  if (from === to) return 1;
+  if (from === "kg" && to === "grs") return 1000;
+  if (from === "grs" && to === "kg") return 1 / 1000;
+  if (from === "litros" && to === "ml") return 1000;
+  if (from === "ml" && to === "litros") return 1 / 1000;
+
+  return 1;
+}
+
+function convertirCantidad(cantidad: number, desde: string, hacia: string) {
+  return cantidad * factorCantidad(desde, hacia);
+}
+
+function definirPrioridad(stockActual: number, stockMinimo: number): Priority {
   if (stockActual <= 0) return "Alta";
   if (stockActual < stockMinimo) return "Alta";
   if (stockActual === stockMinimo) return "Media";
   return "Baja";
 }
 
-function sugerirCantidad(producto: Producto): number {
-  const objetivo = producto.stock_maximo > 0 ? producto.stock_maximo : producto.stock_minimo;
-  const faltante = objetivo - producto.stock_actual;
-  return faltante > 0 ? faltante : 0;
+function formatosSugeridos(insumo: Insumo) {
+  const stockActual = Number(insumo.stock_actual ?? 0);
+  const stockMinimo = Number(insumo.stock_minimo ?? 0);
+  const contenidoFormato = Number(insumo.cantidad_formato_compra ?? 1);
+  const faltante = Math.max(stockMinimo - stockActual, 0);
+
+  if (faltante <= 0 || contenidoFormato <= 0) return 0;
+
+  return Math.ceil(faltante / contenidoFormato);
 }
 
-function formatearCantidad(valor: number, unidad: string | null) {
-  return `${valor} ${unidad ?? ""}`.trim();
+function valorStock(insumo: Insumo) {
+  const stock = Number(insumo.stock_actual ?? 0);
+  const unidadStock =
+    insumo.unidad_referencia ?? insumo.unidad_formato_compra ?? insumo.unidad_uso ?? "";
+  const unidadUso = insumo.unidad_uso ?? unidadStock;
+  const stockEnUso = convertirCantidad(stock, unidadStock, unidadUso);
+
+  return stockEnUso * Number(insumo.costo_unitario_uso ?? 0);
 }
 
-function StatCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
+async function registrarCompra(formData: FormData) {
+  "use server";
+
+  const insumoId = String(formData.get("insumo_id") || "");
+  const cantidadFormatos = Number(formData.get("cantidad_formatos") || 0);
+  const cantidadPorFormato = Number(formData.get("cantidad_por_formato") || 0);
+  const unidadFormato = String(formData.get("unidad_formato") || "");
+  const precioTotal = Number(formData.get("precio_total") || 0);
+  const proveedor = String(formData.get("proveedor") || "").trim();
+  const observacion = String(formData.get("observacion") || "").trim();
+
+  if (
+    !insumoId ||
+    cantidadFormatos <= 0 ||
+    cantidadPorFormato <= 0 ||
+    !unidadFormato ||
+    precioTotal <= 0
+  ) {
+    throw new Error("Completa insumo, cantidad, formato, unidad y precio total.");
+  }
+
+  const { data: insumo, error: readError } = await supabase
+    .from("insumos_costeo")
+    .select(
+      "id,nombre,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
+    )
+    .eq("id", insumoId)
+    .single();
+
+  if (readError) throw new Error(readError.message);
+
+  const item = insumo as Insumo;
+  const unidadStock =
+    item.unidad_referencia ?? item.unidad_formato_compra ?? unidadFormato;
+  const unidadUso = item.unidad_uso ?? unidadStock;
+  const stockAnterior = Number(item.stock_actual ?? 0);
+  const costoAnterior = Number(item.costo_unitario_uso ?? 0);
+
+  const cantidadTotalCompra = cantidadFormatos * cantidadPorFormato;
+  const cantidadCompraEnStock = convertirCantidad(
+    cantidadTotalCompra,
+    unidadFormato,
+    unidadStock
+  );
+  const cantidadCompraEnUso = convertirCantidad(
+    cantidadTotalCompra,
+    unidadFormato,
+    unidadUso
+  );
+  const stockAnteriorEnUso = convertirCantidad(
+    stockAnterior,
+    unidadStock,
+    unidadUso
+  );
+  const valorAnterior = stockAnteriorEnUso * costoAnterior;
+  const nuevoStock = stockAnterior + cantidadCompraEnStock;
+  const nuevoCostoPromedio =
+    stockAnteriorEnUso + cantidadCompraEnUso > 0
+      ? (valorAnterior + precioTotal) /
+        (stockAnteriorEnUso + cantidadCompraEnUso)
+      : precioTotal / cantidadCompraEnUso;
+
+  const { error: updateError } = await supabase
+    .from("insumos_costeo")
+    .update({
+      stock_actual: nuevoStock,
+      costo_unitario_uso: nuevoCostoPromedio,
+      precio_referencia: precioTotal / cantidadFormatos,
+      costo_compra: precioTotal / cantidadFormatos,
+      cantidad_formato_compra: cantidadPorFormato,
+      unidad_formato_compra: unidadFormato,
+      unidad_referencia: unidadStock,
+    })
+    .eq("id", insumoId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  await supabase.from("compras_insumos").insert([
+    {
+      insumo_id: insumoId,
+      proveedor: proveedor || null,
+      cantidad_formatos: cantidadFormatos,
+      cantidad_por_formato: cantidadPorFormato,
+      unidad_formato: unidadFormato,
+      cantidad_total: cantidadTotalCompra,
+      precio_total: precioTotal,
+      costo_unitario_compra: precioTotal / cantidadCompraEnUso,
+      costo_promedio_anterior: costoAnterior,
+      costo_promedio_nuevo: nuevoCostoPromedio,
+      observacion: observacion || null,
+    },
+  ]);
+
+  revalidatePath("/compras");
+  revalidatePath("/inventario");
+  revalidatePath("/recetas-costos");
+}
+
+function StatCard({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-sm text-slate-500">{title}</p>
       <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: PurchaseStatus }) {
-  const labels = {
-    pendiente: "Pendiente",
-    pedido: "Pedido",
-    comprado: "Comprado",
-    recibido: "Recibido",
-  };
-
-  const styles = {
-    pendiente: "bg-red-50 text-red-700 border-red-100",
-    pedido: "bg-amber-50 text-amber-700 border-amber-100",
-    comprado: "bg-blue-50 text-blue-700 border-blue-100",
-    recibido: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${styles[status]}`}
-    >
-      {labels[status]}
-    </span>
   );
 }
 
@@ -124,232 +210,245 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 
 export default async function ComprasPage() {
   const { data, error } = await supabase
-    .from("productos")
-    .select("*")
-    .order("created_at", { ascending: true });
+    .from("insumos_costeo")
+    .select(
+      "id,nombre,familia_id,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
+    )
+    .eq("activo", true)
+    .order("nombre", { ascending: true });
 
-  const productos: Producto[] = data ?? [];
+  const insumos: Insumo[] = data ?? [];
+  const sugeridos = insumos.filter(
+    (item) =>
+      Number(item.stock_minimo ?? 0) > 0 &&
+      Number(item.stock_actual ?? 0) <= Number(item.stock_minimo ?? 0)
+  );
 
-  const sugeridos: PurchaseItem[] = productos
-    .filter((producto) => producto.stock_actual <= producto.stock_minimo)
-    .map((producto) => {
-      const mode = definirModoCompra(producto.categoria);
-      const suggestedQty = sugerirCantidad(producto);
-
-      return {
-        id: producto.id,
-        item: producto.nombre,
-        mode,
-        supplier: definirProveedor(producto.categoria),
-        stock: formatearCantidad(producto.stock_actual, producto.unidad),
-        suggested: formatearCantidad(suggestedQty, producto.unidad),
-        priority: definirPrioridad(producto.stock_actual, producto.stock_minimo),
-        status: "pendiente",
-        category: producto.categoria,
-      };
-    });
-
-  const presencial = sugeridos.filter((item) => item.mode === "Presencial");
-  const proveedor = sugeridos.filter((item) => item.mode === "Proveedor");
-
-  const urgentes = sugeridos.filter((item) => item.priority === "Alta").length;
-  const pendientes = sugeridos.filter((item) => item.status === "pendiente").length;
-  const sobreStock = productos.filter(
-    (producto) => producto.stock_maximo > 0 && producto.stock_actual > producto.stock_maximo
+  const urgentes = sugeridos.filter(
+    (item) =>
+      definirPrioridad(
+        Number(item.stock_actual ?? 0),
+        Number(item.stock_minimo ?? 0)
+      ) === "Alta"
   ).length;
+  const valorInventario = insumos.reduce(
+    (total, item) => total + valorStock(item),
+    0
+  );
+  const compraEstimada = sugeridos.reduce((total, item) => {
+    const formatos = formatosSugeridos(item);
+    const precioFormato = Number(item.precio_referencia ?? item.costo_compra ?? 0);
+    return total + formatos * precioFormato;
+  }, 0);
 
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="flex min-h-screen">
         <Sidebar />
 
-        <section className="flex-1">
+        <section className="min-w-0 flex-1">
           <Topbar
             title="Compras Inteligentes"
-            subtitle="Compras sugeridas según stock mínimo y máximo"
+            subtitle="Compras sugeridas, registro real y costo promedio ponderado"
           />
 
-          <div className="p-6">
+          <div className="mx-auto w-full max-w-[1560px] space-y-6 p-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard title="Ítems sugeridos hoy" value={String(sugeridos.length)} />
+              <StatCard title="Insumos bajo mínimo" value={String(sugeridos.length)} />
               <StatCard title="Compras urgentes" value={String(urgentes)} />
-              <StatCard title="Pedidos pendientes" value={String(pendientes)} />
-              <StatCard title="Sobre stock detectado" value={String(sobreStock)} />
+              <StatCard title="Compra estimada" value={money(compraEstimada)} />
+              <StatCard title="Inventario valorizado" value={money(valorInventario)} />
             </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Gestión de compras
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Lista generada automáticamente desde inventario real
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                    Exportar lista
-                  </button>
-                  <button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                    Confirmar compras del día
-                  </button>
-                </div>
-              </div>
-
-              {error ? (
-                <div className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  Error al cargar compras: {error.message}
-                </div>
-              ) : sugeridos.length === 0 ? (
-                <div className="mt-6 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-sm text-emerald-700">
-                  No hay compras sugeridas por ahora. Todos los productos están sobre su mínimo.
-                </div>
-              ) : null}
-            </div>
-
-            <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Salir a comprar
-                  </h3>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                    {presencial.length} ítems
-                  </span>
-                </div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Registrar compra real
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Usa el formato comprado hoy. El sistema recalcula el costo promedio ponderado.
+                </p>
 
-                <div className="mt-4 space-y-3">
-                  {presencial.length === 0 ? (
-                    <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                      No hay compras presenciales sugeridas.
-                    </div>
-                  ) : (
-                    presencial.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="font-semibold text-slate-900">
-                              {item.item}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                              Stock actual: {item.stock} · Sugerido: {item.suggested}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                              Origen: {item.supplier}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <PriorityBadge priority={item.priority} />
-                            <StatusBadge status={item.status} />
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Pedir a proveedor
-                  </h3>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                    {proveedor.length} ítems
-                  </span>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {proveedor.length === 0 ? (
-                    <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                      No hay pedidos a proveedor sugeridos.
-                    </div>
-                  ) : (
-                    proveedor.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="font-semibold text-slate-900">
-                              {item.item}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                              Stock actual: {item.stock} · Sugerido: {item.suggested}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                              Proveedor: {item.supplier}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <PriorityBadge priority={item.priority} />
-                            <StatusBadge status={item.status} />
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-6 xl:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Alertas de compras
-                </h3>
-
-                <div className="mt-4 space-y-3">
-                  {sugeridos.length === 0 ? (
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                      No hay alertas activas de compra.
-                    </div>
-                  ) : (
-                    <>
-                      {sugeridos.slice(0, 3).map((item) => (
-                        <div
-                          key={`alert-${item.id}`}
-                          className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"
-                        >
-                          {item.item} está en {item.stock} y se sugiere comprar {item.suggested}.
-                        </div>
+                <form action={registrarCompra} className="mt-5 grid gap-4">
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Insumo
+                    <select
+                      name="insumo_id"
+                      required
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                    >
+                      <option value="">Seleccionar insumo</option>
+                      {insumos.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nombre}
+                        </option>
                       ))}
-                    </>
-                  )}
-                </div>
+                    </select>
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Cantidad de formatos
+                      <input
+                        name="cantidad_formatos"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        placeholder="Ej: 2"
+                        className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
+                      />
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Contenido por formato
+                      <input
+                        name="cantidad_por_formato"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        placeholder="Ej: 250"
+                        className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Unidad formato
+                      <select
+                        name="unidad_formato"
+                        required
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                      >
+                        <option value="">Unidad</option>
+                        <option value="kg">kg</option>
+                        <option value="grs">grs</option>
+                        <option value="litros">litros</option>
+                        <option value="ml">ml</option>
+                        <option value="un">un</option>
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Precio total pagado
+                      <input
+                        name="precio_total"
+                        type="number"
+                        step="1"
+                        min="0"
+                        required
+                        placeholder="Ej: 7600"
+                        className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Proveedor
+                    <input
+                      name="proveedor"
+                      placeholder="Opcional"
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
+                    />
+                  </label>
+
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                    Observación
+                    <input
+                      name="observacion"
+                      placeholder="Ej: formato alternativo"
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    Guardar compra y recalcular costo
+                  </button>
+                </form>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Resumen automático
-                </h3>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Compras sugeridas por stock mínimo
+                </h2>
 
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    Productos bajo mínimo:{" "}
-                    <span className="font-semibold">{sugeridos.length}</span>
+                {error ? (
+                  <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    Error al cargar compras: {error.message}
                   </div>
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    Compras presenciales:{" "}
-                    <span className="font-semibold">{presencial.length}</span>
+                ) : (
+                  <div className="mt-5 max-h-[640px] overflow-auto rounded-xl border border-slate-200">
+                    <table className="min-w-[980px] w-full text-sm">
+                      <thead className="sticky top-0 z-10 bg-slate-100 text-left text-xs font-bold uppercase text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Insumo</th>
+                          <th className="px-4 py-3 text-right">Stock</th>
+                          <th className="px-4 py-3 text-right">Mínimo</th>
+                          <th className="px-4 py-3 text-right">Sugerido</th>
+                          <th className="px-4 py-3 text-right">Valor estimado</th>
+                          <th className="px-4 py-3 text-right">Prioridad</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sugeridos.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-4 text-slate-500">
+                              No hay insumos bajo mínimo por ahora.
+                            </td>
+                          </tr>
+                        ) : (
+                          sugeridos.map((item) => {
+                            const unidadStock =
+                              item.unidad_referencia ??
+                              item.unidad_formato_compra ??
+                              item.unidad_uso ??
+                              "";
+                            const formatos = formatosSugeridos(item);
+                            const precioFormato = Number(
+                              item.precio_referencia ?? item.costo_compra ?? 0
+                            );
+                            const prioridad = definirPrioridad(
+                              Number(item.stock_actual ?? 0),
+                              Number(item.stock_minimo ?? 0)
+                            );
+
+                            return (
+                              <tr key={item.id} className="border-t bg-white hover:bg-slate-50">
+                                <td className="px-4 py-3 font-semibold text-slate-900">
+                                  {item.nombre}
+                                  <p className="text-xs font-normal text-slate-500">
+                                    Formato ref.: {item.cantidad_formato_compra ?? 1}{" "}
+                                    {item.unidad_formato_compra ?? unidadStock}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {item.stock_actual ?? 0} {unidadStock}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {item.stock_minimo ?? 0} {unidadStock}
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                                  {formatos} formato{formatos === 1 ? "" : "s"}
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                                  {money(formatos * precioFormato)}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <PriorityBadge priority={prioridad} />
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    Pedidos a proveedor:{" "}
-                    <span className="font-semibold">{proveedor.length}</span>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    Ítems urgentes:{" "}
-                    <span className="font-semibold">{urgentes}</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

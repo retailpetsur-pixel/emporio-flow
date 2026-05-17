@@ -4,56 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
-
-type Role = "admin" | "gerencia" | "supervisor" | "trabajador" | "compras";
-
-type NavItem = {
-  label: string;
-  href: string;
-};
-
-const itemsByRole: Record<Role, NavItem[]> = {
-  admin: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Inventario", href: "/inventario" },
-    { label: "Compras", href: "/compras" },
-    { label: "Producción", href: "/produccion" },
-    { label: "Cierre de turno", href: "/cierre-turno" },
-    { label: "Personal", href: "/usuarios" },
-    { label: "Recetas y Costeo", href: "/recetas-costos" },
-    { label: "Reportes", href: "/reportes" },
-  ],
-  gerencia: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Inventario", href: "/inventario" },
-    { label: "Compras", href: "/compras" },
-    { label: "Producción", href: "/produccion" },
-    { label: "Cierre de turno", href: "/cierre-turno" },
-    { label: "Personal", href: "/usuarios" },
-    { label: "Recetas y Costeo", href: "/recetas-costos" },
-    { label: "Reportes", href: "/reportes" },
-  ],
-  supervisor: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Inventario", href: "/inventario" },
-    { label: "Compras", href: "/compras" },
-    { label: "Producción", href: "/produccion" },
-    { label: "Cierre de turno", href: "/cierre-turno" },
-    { label: "Personal", href: "/usuarios" },
-    { label: "Recetas y Costeo", href: "/recetas-costos" },
-  ],
-  compras: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Inventario", href: "/inventario" },
-    { label: "Compras", href: "/compras" },
-    { label: "Producción", href: "/produccion" },
-  ],
-  trabajador: [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Producción", href: "/produccion" },
-    { label: "Personal", href: "/usuarios" },
-  ],
-};
+import { isRole, itemsByRole, roleLabels, type Role } from "@/lib/permissions";
 
 export default function MobileNav() {
   const pathname = usePathname();
@@ -82,14 +33,9 @@ export default function MobileNav() {
         .eq("activo", true)
         .maybeSingle();
 
-      const rol = perfil?.rol as Role | undefined;
+      const rol = String(perfil?.rol || "");
 
-      if (
-        rol &&
-        ["admin", "gerencia", "supervisor", "trabajador", "compras"].includes(
-          rol
-        )
-      ) {
+      if (isRole(rol)) {
         setRole(rol);
       } else {
         setRole("trabajador");
@@ -107,21 +53,21 @@ export default function MobileNav() {
   );
 
   return (
-    <div className="w-full md:hidden">
+    <div className="relative w-full xl:hidden">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 shadow-sm"
       >
         {open ? "Cerrar menú" : "Menú"}
       </button>
 
       {open && (
-        <div className="mt-3 w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="absolute left-0 right-0 z-50 mt-3 max-h-[70vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
           <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
             Perfil activo:{" "}
             <span className="font-semibold text-slate-900">
-              {loading ? "Cargando..." : role}
+              {loading ? "Cargando..." : roleLabels[role]}
             </span>
           </div>
 
