@@ -2264,16 +2264,7 @@ onClick={async () => {
                     ))}
                   </div>
 
-                  <div className="erp-scroll mt-4 max-h-[640px] overflow-y-auto rounded-xl border border-slate-200">
-                    <div className="sticky top-0 z-10 grid min-w-[760px] grid-cols-[minmax(220px,2fr)_110px_110px_90px_110px_120px] gap-3 bg-slate-100 px-4 py-3 text-xs font-bold uppercase text-slate-500">
-                      <div>Producto</div>
-                      <div className="text-right">Costo unidad</div>
-                      <div className="text-right">Venta</div>
-                      <div className="text-right">Margen</div>
-                      <div className="text-right">Estado</div>
-                      <div className="text-right">Acciones</div>
-                    </div>
-
+                  <div className="mt-4 max-h-[640px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
                     {recetasFiltradas.length === 0 ? (
                       <div className="px-4 py-4 text-sm text-slate-500">
                         Aún no hay productos creados.
@@ -2288,7 +2279,7 @@ onClick={async () => {
                         return (
                         <div
                           key={receta.id}
-                          className={`grid min-w-[760px] grid-cols-[minmax(220px,2fr)_110px_110px_90px_110px_120px] items-center gap-3 border-t border-slate-200 px-4 py-3 text-sm hover:bg-slate-50 ${
+                          className={`mb-3 grid gap-4 rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm lg:grid-cols-[minmax(220px,1.4fr)_repeat(4,minmax(90px,0.7fr))_auto] lg:items-center ${
                             estado === "Sin costo"
                               ? "bg-amber-50/60"
                               : estado === "Uso interno"
@@ -2314,15 +2305,28 @@ onClick={async () => {
 </p>
                           </div>
 
-                          <div className="text-right font-medium text-slate-700">
-                            {money(costo)}
+                          <div className="grid gap-1 lg:text-right">
+                            <span className="text-[11px] font-bold uppercase text-slate-400">
+                              Costo
+                            </span>
+                            <span className="font-medium text-slate-700">
+                              {money(costo)}
+                            </span>
                           </div>
 
-                          <div className="text-right font-medium text-slate-700">
-                            {money(venta)}
+                          <div className="grid gap-1 lg:text-right">
+                            <span className="text-[11px] font-bold uppercase text-slate-400">
+                              Venta
+                            </span>
+                            <span className="font-medium text-slate-700">
+                              {money(venta)}
+                            </span>
                           </div>
 
-                          <div className="text-right">
+                          <div className="grid gap-1 lg:text-right">
+                            <span className="text-[11px] font-bold uppercase text-slate-400">
+                              Margen
+                            </span>
                             <span
                               className={`rounded-full px-3 py-1 text-xs font-bold ${
                                 margen >= 60
@@ -2336,7 +2340,10 @@ onClick={async () => {
                             </span>
                           </div>
 
-                          <div className="text-right">
+                          <div className="grid gap-1 lg:text-right">
+                            <span className="text-[11px] font-bold uppercase text-slate-400">
+                              Estado
+                            </span>
                             <span
                               className={`rounded-full px-3 py-1 text-xs font-bold ${
                                 estado === "Costeada"
@@ -2352,7 +2359,7 @@ onClick={async () => {
                             </span>
                           </div>
 
-                          <div className="flex justify-end gap-2">
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
                             <button
                               type="button"
                               onClick={() => cargarRecetaParaEditar(receta.id)}

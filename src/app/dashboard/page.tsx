@@ -325,7 +325,7 @@ export default async function DashboardPage() {
         title: "Recetas y Costeo",
         description: "Costos unitarios, márgenes y precios sugeridos.",
         href: "/recetas-costos",
-        metric: "Próximo módulo",
+        metric: "Activo",
       },
       {
         title: "Reportes",
