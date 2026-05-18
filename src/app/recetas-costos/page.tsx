@@ -258,6 +258,20 @@ function RecetasCostosContent() {
     setVistaModulo("recetas");
   }, [searchParams, recetas, recetaEditandoId]);
 
+  useEffect(() => {
+    const insumoId = searchParams.get("insumo");
+
+    if (!insumoId || insumos.length === 0) return;
+    if (insumoEditandoId === insumoId) return;
+
+    const insumo = insumos.find((item) => item.id === insumoId);
+    if (!insumo) return;
+
+    cargarInsumoParaEditar(insumo);
+    setVistaModulo("insumos");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [searchParams, insumos, insumoEditandoId]);
+
   function getInsumo(id: string) {
     return insumos.find((x) => x.id === id);
   }

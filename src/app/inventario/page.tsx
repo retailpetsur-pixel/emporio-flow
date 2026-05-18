@@ -1,7 +1,6 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
-import { revalidatePath } from "next/cache";
 
 type InventoryStatus = "normal" | "critical" | "overstock";
 
@@ -78,27 +77,6 @@ function estadoInsumo(item: InsumoCosteo): InventoryStatus {
 
   if (minimo > 0 && stock <= minimo) return "critical";
   return "normal";
-}
-
-async function ajustarStock(formData: FormData) {
-  "use server";
-
-  const id = String(formData.get("id"));
-  const accion = String(formData.get("accion"));
-  const actual = Number(formData.get("actual"));
-
-  const nuevoStock = accion === "sumar" ? actual + 1 : Math.max(actual - 1, 0);
-
-  const { error } = await supabase
-    .from("productos")
-    .update({ stock_actual: nuevoStock })
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath("/inventario");
 }
 
 function StatCard({
@@ -181,6 +159,30 @@ export default async function InventarioPage() {
           />
 
           <div className="p-6">
+            <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    Entrada de mercadería
+                  </p>
+                  <h2 className="mt-1 text-2xl font-bold text-slate-950">
+                    Registrar compra o ingreso
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-emerald-800">
+                    Usa esta opción para ingresar formatos reales de compra,
+                    cantidades y precios. El inventario se actualizará con costo
+                    promedio ponderado.
+                  </p>
+                </div>
+                <a
+                  href="/compras"
+                  className="rounded-xl bg-emerald-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+                >
+                  Registrar entrada
+                </a>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Ítems activos" value={String(totalItems)} />
               <StatCard title="Críticos" value={String(criticalItems)} />
@@ -260,7 +262,12 @@ export default async function InventarioPage() {
                           return (
                             <tr key={item.id} className="border-t bg-white hover:bg-slate-50">
                               <td className="px-4 py-3 font-medium text-slate-900">
-                                {item.nombre}
+                                <a
+                                  href={`/recetas-costos?insumo=${item.id}`}
+                                  className="font-semibold text-slate-950 hover:text-emerald-700 hover:underline"
+                                >
+                                  {item.nombre}
+                                </a>
                                 <p className="text-xs font-normal text-slate-500">
                                   Formato: {item.cantidad_formato_compra ?? 1}{" "}
                                   {item.unidad_formato_compra ?? unidadStock} ·{" "}
