@@ -3,9 +3,22 @@ import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 
-async function crearProducto(formData: FormData) {
+type Producto = {
+  id: string;
+  nombre: string;
+  tipo: string;
+  categoria: string;
+  stock_actual: number;
+  stock_minimo: number;
+  stock_maximo: number;
+  unidad: string | null;
+  estado: string;
+};
+
+async function guardarProducto(formData: FormData) {
   "use server";
 
+  const id = String(formData.get("id") || "").trim();
   const nombre = String(formData.get("nombre") || "").trim();
   const tipo = String(formData.get("tipo") || "").trim();
   const categoria = String(formData.get("categoria") || "").trim();
@@ -19,8 +32,7 @@ async function crearProducto(formData: FormData) {
     throw new Error("Nombre, tipo y categoría son obligatorios.");
   }
 
-  const { error } = await supabase.from("productos").insert([
-    {
+  const payload = {
       nombre,
       tipo,
       categoria,
@@ -29,17 +41,41 @@ async function crearProducto(formData: FormData) {
       stock_maximo,
       unidad,
       estado,
-    },
-  ]);
+    };
+
+  const { error } = id
+    ? await supabase.from("productos").update(payload).eq("id", id)
+    : await supabase.from("productos").insert([payload]);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  redirect("/inventario");
+  redirect(
+    `/inventario?estado=ok&mensaje=${encodeURIComponent(
+      id ? `${nombre} actualizado.` : `${nombre} creado en inventario.`
+    )}`
+  );
 }
 
-export default function NuevoItemPage() {
+export default async function NuevoItemPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ id?: string }>;
+}) {
+  const params = await searchParams;
+  const id = params?.id;
+
+  const { data: producto } = id
+    ? await supabase
+        .from("productos")
+        .select("id,nombre,tipo,categoria,stock_actual,stock_minimo,stock_maximo,unidad,estado")
+        .eq("id", id)
+        .maybeSingle()
+    : { data: null };
+
+  const item = producto as Producto | null;
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="flex min-h-screen">
@@ -47,20 +83,28 @@ export default function NuevoItemPage() {
 
         <section className="flex-1">
           <Topbar
-            title="Nuevo ítem"
-            subtitle="Crear producto, insumo o subproducto"
+            title={item ? "Detalle de ítem" : "Nuevo ítem"}
+            subtitle={
+              item
+                ? "Revisar y modificar datos de inventario"
+                : "Crear producto, insumo o subproducto"
+            }
           />
 
           <div className="p-6">
             <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-slate-900">
-                Formulario de creación
+                {item ? "Editar ítem de inventario" : "Formulario de creación"}
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                Completa los campos para agregar un nuevo ítem al inventario.
+                {item
+                  ? "Ajusta nombre, categoría, mínimos, máximos o stock físico."
+                  : "Completa los campos para agregar un nuevo ítem al inventario."}
               </p>
 
-              <form action={crearProducto} className="mt-6 grid gap-4">
+              <form action={guardarProducto} className="mt-6 grid gap-4">
+                <input type="hidden" name="id" value={item?.id ?? ""} />
+
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
                     Nombre
@@ -69,6 +113,7 @@ export default function NuevoItemPage() {
                     name="nombre"
                     type="text"
                     required
+                    defaultValue={item?.nombre ?? ""}
                     className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     placeholder="Ej: Queso mantecoso"
                   />
@@ -82,6 +127,7 @@ export default function NuevoItemPage() {
                     <select
                       name="tipo"
                       required
+                      defaultValue={item?.tipo ?? ""}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     >
                       <option value="">Seleccionar</option>
@@ -99,6 +145,7 @@ export default function NuevoItemPage() {
                       name="categoria"
                       type="text"
                       required
+                      defaultValue={item?.categoria ?? ""}
                       className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                       placeholder="Ej: Lácteos"
                     />
@@ -114,7 +161,7 @@ export default function NuevoItemPage() {
                       name="stock_actual"
                       type="number"
                       step="0.01"
-                      defaultValue={0}
+                      defaultValue={item?.stock_actual ?? 0}
                       className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
                   </div>
@@ -127,7 +174,7 @@ export default function NuevoItemPage() {
                       name="stock_minimo"
                       type="number"
                       step="0.01"
-                      defaultValue={0}
+                      defaultValue={item?.stock_minimo ?? 0}
                       className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
                   </div>
@@ -140,7 +187,7 @@ export default function NuevoItemPage() {
                       name="stock_maximo"
                       type="number"
                       step="0.01"
-                      defaultValue={0}
+                      defaultValue={item?.stock_maximo ?? 0}
                       className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
                   </div>
@@ -154,6 +201,7 @@ export default function NuevoItemPage() {
                     <input
                       name="unidad"
                       type="text"
+                      defaultValue={item?.unidad ?? ""}
                       className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                       placeholder="Ej: kg, un, lt"
                     />
@@ -165,7 +213,7 @@ export default function NuevoItemPage() {
                     </label>
                     <select
                       name="estado"
-                      defaultValue="normal"
+                      defaultValue={item?.estado ?? "normal"}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     >
                       <option value="normal">Normal</option>
@@ -180,7 +228,7 @@ export default function NuevoItemPage() {
                     type="submit"
                     className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white hover:bg-slate-800"
                   >
-                    Guardar ítem
+                    {item ? "Guardar cambios" : "Guardar ítem"}
                   </button>
 
                   <a

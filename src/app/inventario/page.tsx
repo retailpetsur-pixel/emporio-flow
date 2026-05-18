@@ -1,6 +1,8 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 type InventoryStatus = "normal" | "critical" | "overstock";
 
@@ -79,6 +81,81 @@ function estadoInsumo(item: InsumoCosteo): InventoryStatus {
   return "normal";
 }
 
+function estadoProducto(
+  stockActual: number,
+  stockMinimo: number,
+  stockMaximo: number
+): InventoryStatus {
+  if (stockMinimo > 0 && stockActual <= stockMinimo) return "critical";
+  if (stockMaximo > 0 && stockActual > stockMaximo) return "overstock";
+  return "normal";
+}
+
+async function ajustarStockProducto(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") || "");
+  const accion = String(formData.get("accion") || "");
+
+  if (!id) {
+    redirect(
+      `/inventario?estado=error&mensaje=${encodeURIComponent(
+        "No pude identificar el producto a ajustar."
+      )}`
+    );
+  }
+
+  const { data: producto, error: readError } = await supabase
+    .from("productos")
+    .select("id,nombre,stock_actual,stock_minimo,stock_maximo,unidad")
+    .eq("id", id)
+    .single();
+
+  if (readError || !producto) {
+    redirect(
+      `/inventario?estado=error&mensaje=${encodeURIComponent(
+        readError?.message ?? "No encontré el producto en inventario."
+      )}`
+    );
+  }
+
+  const stockActual = Number(producto.stock_actual ?? 0);
+  const stockMinimo = Number(producto.stock_minimo ?? 0);
+  const stockMaximo = Number(producto.stock_maximo ?? 0);
+  let nuevoStock = stockActual;
+
+  if (accion === "fijar") {
+    nuevoStock = Number(formData.get("stock_real") || 0);
+  } else {
+    nuevoStock = stockActual + Number(formData.get("delta") || 0);
+  }
+
+  nuevoStock = Math.max(nuevoStock, 0);
+
+  const { error } = await supabase
+    .from("productos")
+    .update({
+      stock_actual: nuevoStock,
+      estado: estadoProducto(nuevoStock, stockMinimo, stockMaximo),
+    })
+    .eq("id", id);
+
+  if (error) {
+    redirect(
+      `/inventario?estado=error&mensaje=${encodeURIComponent(error.message)}`
+    );
+  }
+
+  revalidatePath("/inventario");
+  redirect(
+    `/inventario?estado=ok&mensaje=${encodeURIComponent(
+      `${producto.nombre} actualizado a ${nuevoStock.toLocaleString("es-CL")} ${
+        producto.unidad ?? ""
+      }.`
+    )}`
+  );
+}
+
 function StatCard({
   title,
   value,
@@ -116,7 +193,15 @@ function StatusBadge({ status }: { status: InventoryStatus }) {
   );
 }
 
-export default async function InventarioPage() {
+export default async function InventarioPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ estado?: string; mensaje?: string }>;
+}) {
+  const params = await searchParams;
+  const mensaje = params?.mensaje;
+  const estadoMensaje = params?.estado === "ok" ? "ok" : "error";
+
   const [{ data, error }, { data: insumosData, error: insumosError }] =
     await Promise.all([
       supabase
@@ -159,6 +244,18 @@ export default async function InventarioPage() {
           />
 
           <div className="p-6">
+            {mensaje ? (
+              <div
+                className={`mb-6 rounded-2xl border p-5 text-sm font-semibold ${
+                  estadoMensaje === "ok"
+                    ? "border-emerald-100 bg-emerald-50 text-emerald-800"
+                    : "border-red-100 bg-red-50 text-red-700"
+                }`}
+              >
+                {mensaje}
+              </div>
+            ) : null}
+
             <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -342,7 +439,7 @@ export default async function InventarioPage() {
                 </div>
 
                 <div className="mt-6 overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-y-2">
+                  <table className="min-w-[1040px] w-full border-separate border-spacing-y-2">
                     <thead>
                       <tr className="text-left text-sm text-slate-500">
                         <th className="px-4 py-2">Nombre</th>
@@ -353,6 +450,7 @@ export default async function InventarioPage() {
                         <th className="px-4 py-2">Máximo</th>
                         <th className="px-4 py-2">Unidad</th>
                         <th className="px-4 py-2">Estado</th>
+                        <th className="px-4 py-2 text-right">Ajuste físico</th>
                       </tr>
                     </thead>
 
@@ -363,7 +461,12 @@ export default async function InventarioPage() {
                           className="bg-slate-50 text-sm text-slate-700"
                         >
                           <td className="rounded-l-2xl px-4 py-4 font-medium text-slate-900">
-                            {item.nombre}
+                            <a
+                              href={`/nuevo-item?id=${item.id}`}
+                              className="font-semibold text-slate-950 underline-offset-4 hover:text-emerald-700 hover:underline"
+                            >
+                              {item.nombre}
+                            </a>
                           </td>
                           <td className="px-4 py-4">{item.tipo}</td>
                           <td className="px-4 py-4">{item.categoria}</td>
@@ -373,8 +476,61 @@ export default async function InventarioPage() {
                           <td className="px-4 py-4">{item.stock_minimo}</td>
                           <td className="px-4 py-4">{item.stock_maximo}</td>
                           <td className="px-4 py-4">{item.unidad ?? "-"}</td>
-                          <td className="rounded-r-2xl px-4 py-4">
+                          <td className="px-4 py-4">
                             <StatusBadge status={item.estado} />
+                          </td>
+                          <td className="rounded-r-2xl px-4 py-4">
+                            <div className="flex flex-col items-end gap-2">
+                              <div className="flex items-center justify-end gap-2">
+                                <form action={ajustarStockProducto}>
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <input type="hidden" name="accion" value="delta" />
+                                  <input type="hidden" name="delta" value="-1" />
+                                  <button
+                                    type="submit"
+                                    className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-100"
+                                    title="Restar 1"
+                                  >
+                                    -
+                                  </button>
+                                </form>
+
+                                <form action={ajustarStockProducto}>
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <input type="hidden" name="accion" value="delta" />
+                                  <input type="hidden" name="delta" value="1" />
+                                  <button
+                                    type="submit"
+                                    className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-100"
+                                    title="Sumar 1"
+                                  >
+                                    +
+                                  </button>
+                                </form>
+                              </div>
+
+                              <form
+                                action={ajustarStockProducto}
+                                className="flex items-center justify-end gap-2"
+                              >
+                                <input type="hidden" name="id" value={item.id} />
+                                <input type="hidden" name="accion" value="fijar" />
+                                <input
+                                  name="stock_real"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="Stock real"
+                                  className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-right text-sm text-slate-900"
+                                />
+                                <button
+                                  type="submit"
+                                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                  Guardar
+                                </button>
+                              </form>
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -27,7 +27,8 @@ type ProduccionReceta = {
 type PlanSemanal = {
   id: string;
   semana_inicio: string;
-  receta_id: string;
+  receta_id: string | null;
+  producto_nombre: string | null;
   objetivo_semanal: number;
   stock_objetivo_diario: number;
   observacion: string | null;
@@ -122,6 +123,7 @@ export default function ProduccionPage() {
   const [cargando, setCargando] = useState(true);
 
   const [planRecetaId, setPlanRecetaId] = useState("");
+  const [planProductoManual, setPlanProductoManual] = useState("");
   const [objetivoSemanal, setObjetivoSemanal] = useState("");
   const [stockObjetivoDiario, setStockObjetivoDiario] = useState("");
   const [observacionPlan, setObservacionPlan] = useState("");
@@ -166,7 +168,7 @@ export default function ProduccionPage() {
 
       supabase
         .from("plan_produccion_semanal")
-        .select("id,semana_inicio,receta_id,objetivo_semanal,stock_objetivo_diario,observacion")
+        .select("id,semana_inicio,receta_id,producto_nombre,objetivo_semanal,stock_objetivo_diario,observacion")
         .eq("semana_inicio", semanaInicio),
 
       supabase
@@ -202,20 +204,36 @@ export default function ProduccionPage() {
     return recetas.find((r) => r.id === id);
   }
 
-  function producidoSemana(recetaId: string) {
+  function producidoSemana(recetaId: string | null) {
+    if (!recetaId) return 0;
+
     return produccion
       .filter((p) => p.receta_id === recetaId)
       .reduce((sum, p) => sum + Number(p.cantidad_producida || 0), 0);
   }
 
-  function producidoDia(recetaId: string, fecha: string) {
+  function producidoDia(recetaId: string | null, fecha: string) {
+    if (!recetaId) return 0;
+
     return produccion
       .filter((p) => p.receta_id === recetaId && p.fecha === fecha)
       .reduce((sum, p) => sum + Number(p.cantidad_producida || 0), 0);
   }
 
-  function cierreDia(recetaId: string, fecha: string) {
+  function cierreDia(recetaId: string | null, fecha: string) {
+    if (!recetaId) return undefined;
+
     return cierres.find((c) => c.receta_id === recetaId && c.fecha === fecha);
+  }
+
+  function nombrePlan(plan: PlanSemanal) {
+    const receta = plan.receta_id ? getReceta(plan.receta_id) : null;
+    return receta?.nombre ?? plan.producto_nombre ?? "Producto sin nombre";
+  }
+
+  function categoriaPlan(plan: PlanSemanal) {
+    const receta = plan.receta_id ? getReceta(plan.receta_id) : null;
+    return receta?.categoria ?? "Sin receta";
   }
 
   function sugeridoDia(plan: PlanSemanal, diaIndex: number) {
@@ -234,21 +252,28 @@ export default function ProduccionPage() {
   }
 
   async function guardarPlan() {
-    if (!planRecetaId || Number(objetivoSemanal || 0) <= 0) {
-      alert("Selecciona receta y objetivo semanal.");
+    const productoManual = planProductoManual.trim();
+    const recetaSeleccionada = planRecetaId ? getReceta(planRecetaId) : null;
+
+    if ((!planRecetaId && !productoManual) || Number(objetivoSemanal || 0) <= 0) {
+      alert("Selecciona una receta o escribe un producto, y agrega objetivo semanal.");
       return;
     }
 
-    const { error } = await supabase.from("plan_produccion_semanal").upsert(
-      {
+    const payload = {
         semana_inicio: semanaInicio,
-        receta_id: planRecetaId,
+        receta_id: planRecetaId || null,
+        producto_nombre: recetaSeleccionada?.nombre ?? productoManual,
         objetivo_semanal: Number(objetivoSemanal || 0),
         stock_objetivo_diario: Number(stockObjetivoDiario || 0),
         observacion: observacionPlan || null,
-      },
-      { onConflict: "semana_inicio,receta_id" }
-    );
+      };
+
+    const { error } = planRecetaId
+      ? await supabase.from("plan_produccion_semanal").upsert(payload, {
+          onConflict: "semana_inicio,receta_id",
+        })
+      : await supabase.from("plan_produccion_semanal").insert([payload]);
 
     if (error) {
       alert(error.message);
@@ -256,6 +281,7 @@ export default function ProduccionPage() {
     }
 
     setPlanRecetaId("");
+    setPlanProductoManual("");
     setObjetivoSemanal("");
     setStockObjetivoDiario("");
     setObservacionPlan("");
@@ -322,8 +348,8 @@ export default function ProduccionPage() {
 
   const planesPorCategoria = planes.reduce<Record<string, PlanSemanal[]>>(
     (acc, plan) => {
-      const receta = getReceta(plan.receta_id);
-      const categoria = receta?.categoria || "Sin categoría";
+      const receta = plan.receta_id ? getReceta(plan.receta_id) : null;
+      const categoria = receta?.categoria || categoriaPlan(plan);
 
       if (!acc[categoria]) acc[categoria] = [];
       acc[categoria].push(plan);
@@ -428,12 +454,21 @@ export default function ProduccionPage() {
                             </tr>
 
                             {lista.map((plan) => {
-                              const receta = getReceta(plan.receta_id);
-
                               return (
                                 <tr key={plan.id} className="bg-white">
                                   <td className="border border-slate-300 px-3 py-2 font-semibold text-slate-900">
-                                    {receta?.nombre ?? "Receta sin nombre"}
+                                    <a
+                                      href={
+                                        plan.receta_id
+                                          ? `/recetas-costos?id=${plan.receta_id}`
+                                          : `/recetas-costos?crear=${encodeURIComponent(
+                                              nombrePlan(plan)
+                                            )}`
+                                      }
+                                      className="text-slate-950 underline-offset-4 hover:text-emerald-700 hover:underline"
+                                    >
+                                      {nombrePlan(plan)}
+                                    </a>
                                   </td>
                                   <td className="border border-slate-300 px-3 py-2 text-right font-bold text-slate-900">
                                     {plan.objetivo_semanal}
@@ -493,7 +528,10 @@ export default function ProduccionPage() {
               <div className="mt-5 grid gap-3 md:grid-cols-4">
                 <select
                   value={planRecetaId}
-                  onChange={(e) => setPlanRecetaId(e.target.value)}
+                  onChange={(e) => {
+                    setPlanRecetaId(e.target.value);
+                    if (e.target.value) setPlanProductoManual("");
+                  }}
                   className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
                 >
                   <option value="">Seleccionar producto</option>
@@ -503,6 +541,16 @@ export default function ProduccionPage() {
                     </option>
                   ))}
                 </select>
+
+                <input
+                  value={planProductoManual}
+                  onChange={(e) => {
+                    setPlanProductoManual(e.target.value);
+                    if (e.target.value.trim()) setPlanRecetaId("");
+                  }}
+                  placeholder="O escribir producto nuevo"
+                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                />
 
                 <input
                   value={objetivoSemanal}
@@ -524,9 +572,14 @@ export default function ProduccionPage() {
                   value={observacionPlan}
                   onChange={(e) => setObservacionPlan(e.target.value)}
                   placeholder="Observación"
-                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm md:col-span-2"
                 />
               </div>
+
+              <p className="mt-3 text-xs text-slate-500">
+                Si escribes un producto que aún no tiene receta, quedará en el
+                cuaderno y su nombre abrirá Recetas y costos para crearla.
+              </p>
 
               <button
                 type="button"
@@ -623,7 +676,7 @@ export default function ProduccionPage() {
 
                     <tbody>
                       {planes.map((plan) => {
-                        const receta = getReceta(plan.receta_id);
+                        const receta = plan.receta_id ? getReceta(plan.receta_id) : null;
                         const cierre = cierreDia(plan.receta_id, cierreFecha);
                         const stockC = Number(cierre?.stock_cierre ?? 0);
                         const objetivo = Number(plan.stock_objetivo_diario ?? 0);
@@ -633,10 +686,23 @@ export default function ProduccionPage() {
                         return (
                           <tr key={plan.id} className="bg-slate-50 text-slate-700">
                             <td className="rounded-l-2xl px-4 py-4 font-medium text-slate-900">
-                              {receta?.nombre ?? "Receta sin nombre"}
+                              <a
+                                href={
+                                  plan.receta_id
+                                    ? `/recetas-costos?id=${plan.receta_id}`
+                                    : `/recetas-costos?crear=${encodeURIComponent(
+                                        nombrePlan(plan)
+                                      )}`
+                                }
+                                className="underline-offset-4 hover:text-emerald-700 hover:underline"
+                              >
+                                {nombrePlan(plan)}
+                              </a>
                             </td>
                             <td className="px-4 py-4">
-                              {receta?.tipo_produccion === "mise_en_place"
+                              {!receta
+                                ? "Por crear"
+                                : receta.tipo_produccion === "mise_en_place"
                                 ? "Mise en place"
                                 : "Producción"}
                             </td>

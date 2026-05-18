@@ -272,6 +272,38 @@ function RecetasCostosContent() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [searchParams, insumos, insumoEditandoId]);
 
+  useEffect(() => {
+    const crearNombre = searchParams.get("crear");
+
+    if (!crearNombre || recetas.length === 0) return;
+
+    const nombreLimpio = crearNombre.trim();
+    const recetaExistente = recetas.find(
+      (item) => item.nombre.toLowerCase() === nombreLimpio.toLowerCase()
+    );
+
+    if (recetaExistente) {
+      cargarRecetaParaEditar(recetaExistente.id);
+    } else {
+      setRecetaEditandoId("");
+      setRecetaVistaId("");
+      setNombre(nombreLimpio);
+      setTipoProduccion("produccion");
+      setPorciones("1");
+      setUnidadRinde("un");
+      setPrecioVenta("0");
+      setMerma("0");
+      setTiempo("0");
+      setLineas([
+        { tipo_item: "insumo", item_id: "", cantidad_uso: "", unidad_uso: "" },
+      ]);
+      setMostrarFormularioReceta(true);
+    }
+
+    setVistaModulo("recetas");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [searchParams, recetas]);
+
   function getInsumo(id: string) {
     return insumos.find((x) => x.id === id);
   }
