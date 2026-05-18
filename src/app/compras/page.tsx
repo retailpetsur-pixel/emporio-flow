@@ -2,6 +2,7 @@ import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 type Priority = "Alta" | "Media" | "Baja";
 
@@ -181,6 +182,13 @@ async function registrarCompra(formData: FormData) {
   revalidatePath("/compras");
   revalidatePath("/inventario");
   revalidatePath("/recetas-costos");
+  redirect(
+    `/compras?estado=ok&mensaje=${encodeURIComponent(
+      `Compra de ${item.nombre} registrada. Stock actualizado a ${nuevoStock.toLocaleString(
+        "es-CL"
+      )} ${unidadStock}.`
+    )}`
+  );
 }
 
 function StatCard({ title, value }: { title: string; value: string }) {
@@ -208,7 +216,14 @@ function PriorityBadge({ priority }: { priority: Priority }) {
   );
 }
 
-export default async function ComprasPage() {
+export default async function ComprasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ estado?: string; mensaje?: string }>;
+}) {
+  const params = await searchParams;
+  const mensaje = params?.mensaje;
+  const estado = params?.estado === "ok" ? "ok" : "error";
   const { data, error } = await supabase
     .from("insumos_costeo")
     .select(
@@ -253,6 +268,18 @@ export default async function ComprasPage() {
           />
 
           <div className="mx-auto w-full max-w-[1560px] space-y-6 p-6">
+            {mensaje ? (
+              <div
+                className={`rounded-2xl border p-5 text-sm font-semibold ${
+                  estado === "ok"
+                    ? "border-emerald-100 bg-emerald-50 text-emerald-800"
+                    : "border-red-100 bg-red-50 text-red-700"
+                }`}
+              >
+                {mensaje}
+              </div>
+            ) : null}
+
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Insumos bajo mínimo" value={String(sugeridos.length)} />
               <StatCard title="Compras urgentes" value={String(urgentes)} />
