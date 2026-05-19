@@ -110,6 +110,54 @@ function esTexto(valor: string | undefined): valor is string {
   return Boolean(valor);
 }
 
+function claveProductoInventario(item: Producto) {
+  return [
+    normalizarTexto(item.nombre),
+    normalizarTexto(item.tipo),
+    normalizarTexto(item.categoria),
+    normalizarTexto(item.unidad ?? ""),
+  ].join("|");
+}
+
+function quitarProductosDuplicados(productos: Producto[]) {
+  const porClave = new Map<string, Producto>();
+
+  productos.forEach((item) => {
+    const clave = claveProductoInventario(item);
+
+    if (!porClave.has(clave)) {
+      porClave.set(clave, item);
+    }
+  });
+
+  return Array.from(porClave.values());
+}
+
+function productoDesdeInsumo(
+  insumo: InsumoCosteo,
+  familiaPorId: Map<string, string>
+): Producto {
+  const unidad =
+    insumo.unidad_referencia ??
+    insumo.unidad_formato_compra ??
+    insumo.unidad_uso ??
+    null;
+  const stockActual = Number(insumo.stock_actual ?? 0);
+  const stockMinimo = Number(insumo.stock_minimo ?? 0);
+
+  return {
+    id: insumo.id,
+    nombre: insumo.nombre,
+    tipo: "Insumo",
+    categoria: familiaPorId.get(insumo.familia_id ?? "") ?? "Sin familia",
+    stock_actual: stockActual,
+    stock_minimo: stockMinimo,
+    stock_maximo: 0,
+    unidad,
+    estado: estadoProducto(stockActual, stockMinimo, 0),
+  };
+}
+
 async function ajustarStockProducto(formData: FormData) {
   "use server";
 
@@ -125,8 +173,10 @@ async function ajustarStockProducto(formData: FormData) {
   }
 
   const { data: producto, error: readError } = await supabase
-    .from("productos")
-    .select("id,nombre,stock_actual,stock_minimo,stock_maximo,unidad")
+    .from("insumos_costeo")
+    .select(
+      "id,nombre,stock_actual,stock_minimo,unidad_referencia,unidad_formato_compra,unidad_uso"
+    )
     .eq("id", id)
     .single();
 
@@ -140,8 +190,12 @@ async function ajustarStockProducto(formData: FormData) {
 
   const stockActual = Number(producto.stock_actual ?? 0);
   const stockMinimo = Number(producto.stock_minimo ?? 0);
-  const stockMaximo = Number(producto.stock_maximo ?? 0);
   let nuevoStock = stockActual;
+  const unidad =
+    producto.unidad_referencia ??
+    producto.unidad_formato_compra ??
+    producto.unidad_uso ??
+    "";
 
   if (accion === "fijar") {
     nuevoStock = Number(formData.get("stock_real") || 0);
@@ -152,10 +206,9 @@ async function ajustarStockProducto(formData: FormData) {
   nuevoStock = Math.max(nuevoStock, 0);
 
   const { error } = await supabase
-    .from("productos")
+    .from("insumos_costeo")
     .update({
       stock_actual: nuevoStock,
-      estado: estadoProducto(nuevoStock, stockMinimo, stockMaximo),
     })
     .eq("id", id);
 
@@ -169,7 +222,7 @@ async function ajustarStockProducto(formData: FormData) {
   redirect(
     `/inventario?estado=ok&mensaje=${encodeURIComponent(
       `${producto.nombre} actualizado a ${nuevoStock.toLocaleString("es-CL")} ${
-        producto.unidad ?? ""
+        unidad
       }.`
     )}`
   );
@@ -249,16 +302,8 @@ export default async function InventarioPage({
   const abrirValorizado = !hayFiltroExistencias || hayFiltroValorizado;
   const abrirExistencias = !hayFiltroValorizado || hayFiltroExistencias;
 
-  const [
-    { data, error },
-    { data: insumosData, error: insumosError },
-    { data: familiasData },
-  ] =
+  const [{ data: insumosData, error: insumosError }, { data: familiasData }] =
     await Promise.all([
-      supabase
-        .from("productos")
-        .select("*")
-        .order("created_at", { ascending: true }),
       supabase
         .from("insumos_costeo")
         .select(
@@ -273,10 +318,13 @@ export default async function InventarioPage({
         .order("nombre", { ascending: true }),
     ]);
 
-  const productos: Producto[] = data ?? [];
   const insumos: InsumoCosteo[] = insumosData ?? [];
   const familias: Familia[] = familiasData ?? [];
   const familiaPorId = new Map(familias.map((familia) => [familia.id, familia.nombre]));
+  const productosBase = insumos.map((insumo) =>
+    productoDesdeInsumo(insumo, familiaPorId)
+  );
+  const productos = quitarProductosDuplicados(productosBase);
 
   const familiaOpciones = Array.from(
     new Set(
@@ -752,9 +800,9 @@ export default async function InventarioPage({
                 ) : null}
               </AutoSubmitForm>
 
-              {error ? (
+              {insumosError ? (
                 <div className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  Error al cargar inventario: {error.message}
+                  Error al cargar inventario: {insumosError.message}
                 </div>
               ) : (
                 <>
