@@ -1,4 +1,13 @@
-export default function LoginPage() {
+import PasswordInput from "@/components/emporio/password-input";
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+  const loginError = params?.error === "1";
+
   return (
     <main className="min-h-screen bg-slate-100 flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -14,6 +23,13 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {loginError ? (
+          <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            Correo o contraseña incorrectos. Revisa los datos e inténtalo otra
+            vez.
+          </div>
+        ) : null}
+
         <form action="/auth/sign-in" method="post" className="space-y-4">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -23,7 +39,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               required
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
               placeholder="tu@correo.cl"
             />
           </div>
@@ -32,13 +48,7 @@ export default function LoginPage() {
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Contraseña
             </label>
-            <input
-              name="password"
-              type="password"
-              required
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-              placeholder="••••••••"
-            />
+            <PasswordInput />
           </div>
 
           <button
