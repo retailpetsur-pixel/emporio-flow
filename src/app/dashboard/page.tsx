@@ -3,21 +3,169 @@ import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 type Role = "admin" | "gerencia" | "supervisor" | "trabajador" | "compras";
+type IconName =
+  | "alert"
+  | "box"
+  | "cart"
+  | "chart"
+  | "check"
+  | "clock"
+  | "gear"
+  | "key"
+  | "list"
+  | "production"
+  | "users";
+
+function DashboardIcon({
+  name,
+  className = "",
+}: {
+  name: IconName;
+  className?: string;
+}) {
+  const common = {
+    className: `h-5 w-5 ${className}`,
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 2,
+    viewBox: "0 0 24 24",
+    "aria-hidden": true,
+  };
+
+  const paths: Record<IconName, ReactNode> = {
+    alert: (
+      <>
+        <path d="M12 4 3 20h18L12 4Z" />
+        <path d="M12 9v5" />
+        <path d="M12 17h.01" />
+      </>
+    ),
+    box: (
+      <>
+        <path d="M21 8 12 3 3 8l9 5 9-5Z" />
+        <path d="M3 8v8l9 5 9-5V8" />
+        <path d="M12 13v8" />
+      </>
+    ),
+    cart: (
+      <>
+        <path d="M5 6h16l-2 8H7L5 3H3" />
+        <path d="M8 20h.01" />
+        <path d="M17 20h.01" />
+      </>
+    ),
+    chart: (
+      <>
+        <path d="M4 19V5" />
+        <path d="M4 19h16" />
+        <path d="M8 15l3-4 3 2 4-6" />
+      </>
+    ),
+    check: (
+      <>
+        <path d="M20 6 9 17l-5-5" />
+        <path d="M4 20h16" />
+      </>
+    ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v5l3 2" />
+      </>
+    ),
+    gear: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.9-1.1L14.3 3h-4.6l-.4 2.9A7 7 0 0 0 7.4 7L5 6 3 9.4l2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.1l-2 1.5L5 18l2.4-1a7 7 0 0 0 1.9 1.1l.4 2.9h4.6l.4-2.9a7 7 0 0 0 1.9-1.1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1.1Z" />
+      </>
+    ),
+    key: (
+      <>
+        <circle cx="8" cy="14" r="4" />
+        <path d="M12 14h8" />
+        <path d="M17 14v3" />
+        <path d="M20 14v2" />
+      </>
+    ),
+    list: (
+      <>
+        <path d="M8 6h13" />
+        <path d="M8 12h13" />
+        <path d="M8 18h13" />
+        <path d="M3 6h.01" />
+        <path d="M3 12h.01" />
+        <path d="M3 18h.01" />
+      </>
+    ),
+    production: (
+      <>
+        <path d="M4 18V8l8-4 8 4v10" />
+        <path d="M8 18v-6h8v6" />
+        <path d="M10 9h4" />
+      </>
+    ),
+    users: (
+      <>
+        <circle cx="9" cy="8" r="3" />
+        <path d="M3 20a6 6 0 0 1 12 0" />
+        <path d="M16 11a3 3 0 0 0 0-6" />
+        <path d="M18 20a5 5 0 0 0-3-4.5" />
+      </>
+    ),
+  };
+
+  return <svg {...common}>{paths[name]}</svg>;
+}
+
+function moduleIconForHref(href: string): IconName {
+  const icons: Record<string, IconName> = {
+    "/inventario": "box",
+    "/recetas-costos": "chart",
+    "/compras": "cart",
+    "/produccion": "production",
+    "/cierre-turno": "check",
+    "/usuarios": "users",
+    "/configuracion": "gear",
+  };
+
+  return icons[href] ?? "list";
+}
 
 function StatCard({
   title,
   value,
   helper,
+  icon,
+  tone = "slate",
 }: {
   title: string;
   value: string;
   helper?: string;
+  icon: IconName;
+  tone?: "slate" | "emerald" | "amber" | "red";
 }) {
+  const toneStyles = {
+    slate: "bg-slate-100 text-slate-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    amber: "bg-amber-50 text-amber-700",
+    red: "bg-red-50 text-red-700",
+  };
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{title}</p>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-sm text-slate-500">{title}</p>
+        <span
+          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${toneStyles[tone]}`}
+        >
+          <DashboardIcon name={icon} />
+        </span>
+      </div>
       <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
       {helper ? <p className="mt-2 text-xs text-slate-500">{helper}</p> : null}
     </div>
@@ -29,11 +177,13 @@ function ModuleCard({
   description,
   href,
   metric,
+  icon,
 }: {
   title: string;
   description: string;
   href: string;
   metric?: string;
+  icon: IconName;
 }) {
   return (
     <a
@@ -42,9 +192,14 @@ function ModuleCard({
     >
       <div className="flex min-h-32 flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-            <p className="mt-2 text-sm text-slate-500">{description}</p>
+          <div className="flex gap-3">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-emerald-50 group-hover:text-emerald-700">
+              <DashboardIcon name={icon} />
+            </span>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+              <p className="mt-2 text-sm text-slate-500">{description}</p>
+            </div>
           </div>
           {metric ? (
             <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
@@ -65,22 +220,29 @@ function ModuleGroupCard({
   title,
   description,
   metric,
+  icon,
   links,
 }: {
   title: string;
   description: string;
   metric?: string;
-  links: Array<{ label: string; href: string }>;
+  icon: IconName;
+  links: Array<{ label: string; href: string; icon: IconName }>;
 }) {
   return (
     <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
       <div className="flex min-h-44 flex-col justify-between gap-5">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              {description}
-            </p>
+          <div className="flex gap-3">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <DashboardIcon name={icon} />
+            </span>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {description}
+              </p>
+            </div>
           </div>
           {metric ? (
             <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -94,12 +256,13 @@ function ModuleGroupCard({
             <a
               key={link.href}
               href={link.href}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
                 index === 0
                   ? "bg-emerald-700 text-white hover:bg-emerald-800"
                   : "border border-slate-200 text-slate-700 hover:bg-slate-50"
               }`}
             >
+              <DashboardIcon name={link.icon} className="h-4 w-4" />
               {link.label}
             </a>
           ))}
@@ -553,21 +716,29 @@ export default async function DashboardPage() {
                 title="Productos críticos"
                 value={String(productosCriticos)}
                 helper="Bajo stock mínimo"
+                icon="alert"
+                tone={productosCriticos > 0 ? "red" : "emerald"}
               />
               <StatCard
                 title="Producción pendiente"
                 value={String(produccionPendiente)}
                 helper="Pendiente o en proceso"
+                icon="clock"
+                tone={produccionPendiente > 0 ? "amber" : "emerald"}
               />
               <StatCard
                 title="Compras sugeridas"
                 value={String(comprasSugeridas)}
                 helper="Stock actual <= mínimo"
+                icon="cart"
+                tone={comprasSugeridas > 0 ? "amber" : "emerald"}
               />
               <StatCard
                 title="Permisos pendientes"
                 value={String(permisosPendientes)}
                 helper="Pendiente o aprobación parcial"
+                icon="key"
+                tone={permisosPendientes > 0 ? "amber" : "emerald"}
               />
             </div>
 
@@ -593,12 +764,14 @@ export default async function DashboardPage() {
                     title="Inventario, recetas y costos"
                     description="Stock valorizado, insumos maestros, recetas, márgenes y costos de producción."
                     metric={`${productosList.length} ítems`}
+                    icon="box"
                     links={gestionCostosLinks.map((module) => ({
                       label:
                         module.href === "/recetas-costos"
                           ? "Recetas y costos"
                           : module.title,
                       href: module.href,
+                      icon: moduleIconForHref(module.href),
                     }))}
                   />
                 ) : null}
@@ -608,9 +781,11 @@ export default async function DashboardPage() {
                     title="Producción y cierre de turno"
                     description="Planificación semanal, producción diaria, vendibles, mermas y cierre operativo."
                     metric={`${produccionList.length} registros`}
+                    icon="production"
                     links={operacionLinks.map((module) => ({
                       label: module.title,
                       href: module.href,
+                      icon: moduleIconForHref(module.href),
                     }))}
                   />
                 ) : null}
@@ -624,6 +799,7 @@ export default async function DashboardPage() {
                     description={module.description}
                     href={module.href}
                     metric={module.metric}
+                    icon={moduleIconForHref(module.href)}
                   />
                 ))}
               </div>

@@ -848,6 +848,41 @@ async function crearFamiliaInsumoRapida() {
   setNuevoInsumoFamiliaId(data.id);
 }
 
+async function eliminarFamiliaInsumo(familia: Item) {
+  const insumosAsociados = insumos.filter(
+    (item) => item.familia_id === familia.id
+  );
+
+  if (insumosAsociados.length > 0) {
+    alert(
+      `No puedo eliminar "${familia.nombre}" porque tiene ${insumosAsociados.length} insumo(s) asociado(s). Primero cambia esos insumos a otra familia.`
+    );
+    return;
+  }
+
+  const confirmar = confirm(
+    `¿Eliminar la familia "${familia.nombre}"? Ya no aparecerá para nuevos insumos.`
+  );
+
+  if (!confirmar) return;
+
+  const { error } = await supabase
+    .from("familias_productos")
+    .update({ activo: false })
+    .eq("id", familia.id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (filtroFamilia === familia.id) setFiltroFamilia("");
+  if (nuevoInsumoFamiliaId === familia.id) setNuevoInsumoFamiliaId("");
+
+  setMensaje("✅ Familia de insumo eliminada.");
+  await cargar();
+}
+
   async function guardarInsumoRapido() {
     try {
       setGuardandoInsumo(true);
@@ -2893,6 +2928,69 @@ onClick={async () => {
                     ))}
                   </select>
                 </div>
+
+                <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-slate-900">
+                    <span>Gestionar familias de insumos</span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-500">
+                      {familiasInsumos.length} familias
+                    </span>
+                  </summary>
+
+                  <div className="border-t border-slate-200 px-4 py-3">
+                    <p className="text-sm text-slate-600">
+                      Puedes eliminar familias vacías. Si una familia tiene
+                      insumos asociados, primero cambia esos insumos a otra
+                      familia.
+                    </p>
+
+                    <div className="mt-3 grid gap-2">
+                      {familiasInsumos.map((familia) => {
+                        const totalInsumos = insumos.filter(
+                          (item) => item.familia_id === familia.id
+                        ).length;
+
+                        return (
+                          <div
+                            key={familia.id}
+                            className="grid gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm md:grid-cols-[1fr_auto_auto] md:items-center"
+                          >
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {familia.nombre}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {totalInsumos} insumo(s) asociados
+                              </p>
+                            </div>
+
+                            <span
+                              className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${
+                                totalInsumos > 0
+                                  ? "bg-slate-100 text-slate-500"
+                                  : "bg-emerald-50 text-emerald-700"
+                              }`}
+                            >
+                              {totalInsumos > 0 ? "En uso" : "Vacía"}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => eliminarFamiliaInsumo(familia)}
+                              className={`rounded-lg px-3 py-2 text-sm font-bold ${
+                                totalInsumos > 0
+                                  ? "border border-slate-200 bg-white text-slate-500"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </details>
 
                 <div className="erp-scroll mt-4 max-h-[520px] overflow-y-auto rounded-xl border border-slate-200">
                   <table className="min-w-full text-sm">

@@ -1,5 +1,6 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
+import AutoSubmitForm from "@/components/emporio/auto-submit-form";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -236,6 +237,17 @@ export default async function InventarioPage({
   const filtroEstadoExistencias = String(params?.ex_estado ?? "");
   const busquedaValorizadoNormalizada = normalizarTexto(busquedaValorizado);
   const busquedaExistenciasNormalizada = normalizarTexto(busquedaExistencias);
+  const hayFiltroValorizado = Boolean(
+    busquedaValorizado || filtroFamiliaValorizado
+  );
+  const hayFiltroExistencias = Boolean(
+    busquedaExistencias ||
+      filtroCategoriaExistencias ||
+      filtroTipoExistencias ||
+      filtroEstadoExistencias
+  );
+  const abrirValorizado = !hayFiltroExistencias || hayFiltroValorizado;
+  const abrirExistencias = !hayFiltroValorizado || hayFiltroExistencias;
 
   const [
     { data, error },
@@ -389,7 +401,8 @@ export default async function InventarioPage({
             </div>
 
             <details
-              open
+              open={abrirValorizado}
+              id="valorizado"
               className="group mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             >
               <summary className="cursor-pointer list-none">
@@ -452,7 +465,10 @@ export default async function InventarioPage({
                 </div>
               </summary>
 
-              <form className="mt-5 grid gap-3 md:grid-cols-[1fr_260px_auto_auto]">
+              <AutoSubmitForm
+                action="/inventario#valorizado"
+                className="mt-5 grid gap-3 md:grid-cols-[1fr_260px_auto]"
+              >
                 <input type="hidden" name="ex_q" value={busquedaExistencias} />
                 <input
                   type="hidden"
@@ -496,14 +512,7 @@ export default async function InventarioPage({
                   </select>
                 </div>
 
-                <button
-                  type="submit"
-                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
-                >
-                  Buscar
-                </button>
-
-                {(busquedaValorizado || filtroFamiliaValorizado) ? (
+                {hayFiltroValorizado ? (
                   <a
                     href={`/inventario?ex_q=${encodeURIComponent(
                       busquedaExistencias
@@ -511,13 +520,15 @@ export default async function InventarioPage({
                       filtroCategoriaExistencias
                     )}&ex_tipo=${encodeURIComponent(
                       filtroTipoExistencias
-                    )}&ex_estado=${encodeURIComponent(filtroEstadoExistencias)}`}
+                    )}&ex_estado=${encodeURIComponent(
+                      filtroEstadoExistencias
+                    )}#valorizado`}
                     className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     Limpiar
                   </a>
                 ) : null}
-              </form>
+              </AutoSubmitForm>
 
               {insumosError ? (
                 <div className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -596,7 +607,8 @@ export default async function InventarioPage({
             </details>
 
             <details
-              open
+              open={abrirExistencias}
+              id="existencias"
               className="group mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             >
               <summary className="cursor-pointer list-none">
@@ -659,7 +671,10 @@ export default async function InventarioPage({
                 </div>
               </summary>
 
-              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_240px_180px_180px_auto_auto]">
+              <AutoSubmitForm
+                action="/inventario#existencias"
+                className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_240px_180px_180px_auto]"
+              >
                 <input type="hidden" name="val_q" value={busquedaValorizado} />
                 <input
                   type="hidden"
@@ -723,29 +738,19 @@ export default async function InventarioPage({
                   </select>
                 </div>
 
-                <button
-                  type="submit"
-                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
-                >
-                  Buscar
-                </button>
-
-                {(busquedaExistencias ||
-                  filtroCategoriaExistencias ||
-                  filtroTipoExistencias ||
-                  filtroEstadoExistencias) ? (
+                {hayFiltroExistencias ? (
                   <a
                     href={`/inventario?val_q=${encodeURIComponent(
                       busquedaValorizado
                     )}&val_familia=${encodeURIComponent(
                       filtroFamiliaValorizado
-                    )}`}
+                    )}#existencias`}
                     className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     Limpiar
                   </a>
                 ) : null}
-              </form>
+              </AutoSubmitForm>
 
               {error ? (
                 <div className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -754,14 +759,14 @@ export default async function InventarioPage({
               ) : (
                 <>
                 <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800">
-                  Los botones de ajuste rápido se retiraron de esta vista para
-                  evitar errores de formato. Para ingresar mercadería, usa
-                  Compras: ahí se registra formato comprado, cantidad, precio y
-                  costo promedio ponderado.
+                  Para inventario físico registra el total real en la unidad de
+                  la fila. Ejemplo: si dice kg, pesa y escribe kilos totales
+                  como 2,5; si dice un, cuenta unidades. Los envases, cajas y
+                  formatos de compra se registran en Compras.
                 </div>
 
                 <div className="mt-6 overflow-x-auto">
-                  <table className="min-w-[1040px] w-full border-separate border-spacing-y-2">
+                  <table className="min-w-[1120px] w-full border-separate border-spacing-y-2">
                     <thead>
                       <tr className="text-left text-sm text-slate-500">
                         <th className="px-4 py-2">Nombre</th>
@@ -772,7 +777,7 @@ export default async function InventarioPage({
                         <th className="px-4 py-2">Máximo</th>
                         <th className="px-4 py-2">Unidad</th>
                         <th className="px-4 py-2">Estado</th>
-                        <th className="px-4 py-2 text-right">Ajuste físico</th>
+                        <th className="px-4 py-2 text-right">Conteo físico real</th>
                       </tr>
                     </thead>
 
@@ -803,7 +808,7 @@ export default async function InventarioPage({
                           <td className="px-4 py-4">{item.tipo}</td>
                           <td className="px-4 py-4">{item.categoria}</td>
                           <td className="px-4 py-4 text-right font-semibold text-slate-900">
-                            {item.stock_actual}
+                            {item.stock_actual} {item.unidad ?? ""}
                           </td>
                           <td className="px-4 py-4">{item.stock_minimo}</td>
                           <td className="px-4 py-4">{item.stock_maximo}</td>
@@ -813,48 +818,28 @@ export default async function InventarioPage({
                           </td>
                           <td className="rounded-r-2xl px-4 py-4">
                             <div className="flex flex-col items-end gap-2">
-                              <div className="flex items-center justify-end gap-2">
-                                <form action={ajustarStockProducto}>
-                                  <input type="hidden" name="id" value={item.id} />
-                                  <input type="hidden" name="accion" value="delta" />
-                                  <input type="hidden" name="delta" value="-1" />
-                                  <button
-                                    type="submit"
-                                    className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-100"
-                                    title="Restar 1"
-                                  >
-                                    -
-                                  </button>
-                                </form>
-
-                                <form action={ajustarStockProducto}>
-                                  <input type="hidden" name="id" value={item.id} />
-                                  <input type="hidden" name="accion" value="delta" />
-                                  <input type="hidden" name="delta" value="1" />
-                                  <button
-                                    type="submit"
-                                    className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-100"
-                                    title="Sumar 1"
-                                  >
-                                    +
-                                  </button>
-                                </form>
-                              </div>
-
+                              <p className="text-xs font-semibold text-slate-500">
+                                Registrar en {item.unidad ?? "unidad base"}
+                              </p>
                               <form
                                 action={ajustarStockProducto}
                                 className="flex items-center justify-end gap-2"
                               >
                                 <input type="hidden" name="id" value={item.id} />
                                 <input type="hidden" name="accion" value="fijar" />
-                                <input
-                                  name="stock_real"
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="Stock real"
-                                  className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-right text-sm text-slate-900"
-                                />
+                                <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white focus-within:border-emerald-400">
+                                  <input
+                                    name="stock_real"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="Stock real"
+                                    className="w-28 border-0 bg-white px-3 py-2 text-right text-sm text-slate-900 outline-none"
+                                  />
+                                  <span className="border-l border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600">
+                                    {item.unidad ?? "-"}
+                                  </span>
+                                </div>
                                 <button
                                   type="submit"
                                   className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
@@ -862,6 +847,10 @@ export default async function InventarioPage({
                                   Guardar
                                 </button>
                               </form>
+                              <p className="max-w-56 text-right text-xs leading-5 text-slate-500">
+                                Escribe el total contado, no la cantidad de
+                                envases.
+                              </p>
                             </div>
                           </td>
                         </tr>
