@@ -157,16 +157,16 @@ function StatCard({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:p-5">
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm text-slate-500">{title}</p>
         <span
-          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${toneStyles[tone]}`}
+          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${toneStyles[tone]}`}
         >
           <DashboardIcon name={icon} />
         </span>
       </div>
-      <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
+      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
       {helper ? <p className="mt-2 text-xs text-slate-500">{helper}</p> : null}
     </div>
   );
@@ -188,17 +188,19 @@ function ModuleCard({
   return (
     <a
       href={href}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md xl:p-5"
     >
-      <div className="flex min-h-32 flex-col justify-between gap-4">
+      <div className="flex min-h-36 flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-emerald-50 group-hover:text-emerald-700">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-emerald-50 group-hover:text-emerald-700">
               <DashboardIcon name={icon} />
             </span>
             <div>
               <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-              <p className="mt-2 text-sm text-slate-500">{description}</p>
+              <p className="mt-1.5 text-sm leading-5 text-slate-500">
+                {description}
+              </p>
             </div>
           </div>
           {metric ? (
@@ -230,16 +232,16 @@ function ModuleGroupCard({
   links: Array<{ label: string; href: string; icon: IconName }>;
 }) {
   return (
-    <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-      <div className="flex min-h-44 flex-col justify-between gap-5">
+    <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm xl:p-5">
+      <div className="flex min-h-40 flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex gap-3">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
               <DashboardIcon name={icon} />
             </span>
             <div>
               <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-1.5 max-w-xl text-sm leading-5 text-slate-500">
                 {description}
               </p>
             </div>
@@ -251,7 +253,7 @@ function ModuleGroupCard({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-1">
           {links.map((link, index) => (
             <a
               key={link.href}
@@ -742,7 +744,7 @@ export default async function DashboardPage() {
               />
             </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
