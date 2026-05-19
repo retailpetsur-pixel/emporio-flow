@@ -425,9 +425,31 @@ export default async function InventarioPage({
                   </div>
                 </div>
                 </div>
-                <p className="mt-3 text-xs font-semibold text-slate-500 group-open:hidden">
-                  Clic para desplegar
-                </p>
+                <div className="mt-3 inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                  <span className="hidden group-open:inline">Contraer</span>
+                  <span className="group-open:hidden">Expandir</span>
+                </div>
+
+                <div className="mt-4 grid gap-3 group-open:hidden sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 px-4 py-3">
+                    <p className="text-xs text-slate-500">Insumos</p>
+                    <p className="text-lg font-bold text-slate-900">
+                      {insumos.length}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                    <p className="text-xs text-emerald-700">Valor total</p>
+                    <p className="text-lg font-bold text-emerald-800">
+                      {money(valorTotalInsumos)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 px-4 py-3">
+                    <p className="text-xs text-red-700">Bajo mínimo</p>
+                    <p className="text-lg font-bold text-red-700">
+                      {insumosCriticos}
+                    </p>
+                  </div>
+                </div>
               </summary>
 
               <form className="mt-5 grid gap-3 md:grid-cols-[1fr_260px_auto_auto]">
@@ -604,9 +626,37 @@ export default async function InventarioPage({
                   </a>
                 </div>
                 </div>
-                <p className="mt-3 text-xs font-semibold text-slate-500 group-open:hidden">
-                  Clic para desplegar
-                </p>
+                <div className="mt-3 inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                  <span className="hidden group-open:inline">Contraer</span>
+                  <span className="group-open:hidden">Expandir</span>
+                </div>
+
+                <div className="mt-4 grid gap-3 group-open:hidden sm:grid-cols-4">
+                  <div className="rounded-xl bg-slate-50 px-4 py-3">
+                    <p className="text-xs text-slate-500">Ítems</p>
+                    <p className="text-lg font-bold text-slate-900">
+                      {totalItems}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 px-4 py-3">
+                    <p className="text-xs text-red-700">Críticos</p>
+                    <p className="text-lg font-bold text-red-700">
+                      {criticalItems}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 px-4 py-3">
+                    <p className="text-xs text-amber-700">Sobre stock</p>
+                    <p className="text-lg font-bold text-amber-700">
+                      {overstockItems}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                    <p className="text-xs text-emerald-700">Normales</p>
+                    <p className="text-lg font-bold text-emerald-800">
+                      {normalItems}
+                    </p>
+                  </div>
+                </div>
               </summary>
 
               <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_240px_180px_180px_auto_auto]">
