@@ -322,39 +322,6 @@ async function actualizarPerfilUsuario(formData: FormData) {
   volverConfiguracion("ok", "Perfil actualizado correctamente.");
 }
 
-async function enviarCambioClave(formData: FormData) {
-  "use server";
-
-  const { role } = await obtenerRolActual();
-
-  if (role !== "admin" && role !== "gerencia") {
-    volverConfiguracion(
-      "error",
-      "No tienes permisos para enviar cambios de clave."
-    );
-  }
-
-  const email = String(formData.get("email") || "")
-    .trim()
-    .toLowerCase();
-
-  if (!email) {
-    volverConfiguracion("error", "Correo no válido.");
-  }
-
-  const supabase = await createServerClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
-
-  if (error) {
-    volverConfiguracion(
-      "error",
-      `No pude enviar el cambio de clave: ${error.message}`
-    );
-  }
-
-  volverConfiguracion("ok", "Correo de cambio de clave enviado.");
-}
-
 async function cambiarClaveUsuario(formData: FormData) {
   "use server";
 
@@ -580,10 +547,6 @@ export default async function ConfiguracionPage({
     });
 
   const activos = usuariosConfigurables.filter((perfil) => perfil.activo).length;
-  const administradores = usuariosConfigurables.filter(
-    (perfil) => perfil.rol === "admin" || perfil.rol === "gerencia"
-  ).length;
-
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="flex min-h-screen">

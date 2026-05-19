@@ -189,7 +189,6 @@ async function ajustarStockProducto(formData: FormData) {
   }
 
   const stockActual = Number(producto.stock_actual ?? 0);
-  const stockMinimo = Number(producto.stock_minimo ?? 0);
   let nuevoStock = stockActual;
   const unidad =
     producto.unidad_referencia ??

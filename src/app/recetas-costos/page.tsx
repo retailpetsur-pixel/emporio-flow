@@ -68,6 +68,44 @@ type FiltroEstadoReceta =
   | "uso_interno"
   | "margen_bajo"
   | "subrecetas";
+type ExcelInsumoRow = Record<string, unknown>;
+
+function ModuleCard({
+  id,
+  title,
+  description,
+  active,
+  onSelect,
+}: {
+  id: VistaModulo;
+  title: string;
+  description: string;
+  active: boolean;
+  onSelect: (id: VistaModulo) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(id)}
+      className={`rounded-xl border px-4 py-3 text-left shadow-sm transition-colors ${
+        active
+          ? "border-slate-900 bg-slate-900 text-white"
+          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
+      }`}
+    >
+      <h2
+        className={
+          active ? "text-sm font-bold text-white" : "text-sm font-bold text-slate-900"
+        }
+      >
+        {title}
+      </h2>
+      <p className={active ? "mt-1 text-xs text-slate-300" : "mt-1 text-xs text-slate-500"}>
+        {description}
+      </p>
+    </button>
+  );
+}
 
 function money(v: number) {
   return new Intl.NumberFormat("es-CL", {
@@ -173,7 +211,6 @@ function RecetasCostosContent() {
   const [nuevoInsumoNombre, setNuevoInsumoNombre] = useState("");
   const [nuevoInsumoFamiliaId, setNuevoInsumoFamiliaId] = useState("");
   const [nuevoPrecioReferencia, setNuevoPrecioReferencia] = useState("");
-  const [nuevoUnidadReferencia, setNuevoUnidadReferencia] = useState("kg");
   const [nuevoCantidadFormato, setNuevoCantidadFormato] = useState("1");
   const [nuevoUnidadFormato, setNuevoUnidadFormato] = useState("kg");
   const [nuevoUnidadUso, setNuevoUnidadUso] = useState("grs");
@@ -245,6 +282,7 @@ function RecetasCostosContent() {
     setDetalleDB((detalleRes.data ?? []) as DetalleDB[]);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     cargar();
   }, []);
@@ -304,6 +342,7 @@ function RecetasCostosContent() {
     setVistaModulo("recetas");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [searchParams, recetas]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   function getInsumo(id: string) {
     return insumos.find((x) => x.id === id);
@@ -641,6 +680,7 @@ for (const receta of recetasFinales) {
     const sugerido = unidad / 0.3;
 
     return { base, ajustado, unidad, margen, margenPct, sugerido };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineas, merma, porciones, precioVenta, insumos, subrecetas]);
 
   const insumosFiltrados = insumos.filter((item) => {
@@ -959,7 +999,6 @@ async function eliminarFamiliaInsumo(familia: Item) {
     setNuevoInsumoFamiliaId("");
     setNuevoPrecioReferencia("");
     setNuevoCantidadFormato("1");
-    setNuevoUnidadReferencia("kg");
     setNuevoUnidadFormato("kg");
     setNuevoUnidadUso("grs");
     setNuevoStockFormatos("0");
@@ -973,7 +1012,6 @@ async function eliminarFamiliaInsumo(familia: Item) {
     setNuevoInsumoNombre(insumo.nombre);
     setNuevoInsumoFamiliaId(insumo.familia_id ?? "");
     setNuevoPrecioReferencia(String(insumo.precio_referencia ?? insumo.costo_compra ?? ""));
-    setNuevoUnidadReferencia(insumo.unidad_referencia ?? insumo.unidad_compra ?? "kg");
     setNuevoCantidadFormato(String(insumo.cantidad_formato_compra ?? 1));
     setNuevoUnidadFormato(insumo.unidad_formato_compra ?? insumo.unidad_compra ?? "kg");
     setNuevoUnidadUso(insumo.unidad_uso ?? "grs");
@@ -1369,20 +1407,20 @@ else {
       const workbook = XLSX.read(data);
 
       const hoja = workbook.Sheets[workbook.SheetNames[0]];
-     const filasRaw = XLSX.utils.sheet_to_json(hoja);
+      const filasRaw = XLSX.utils.sheet_to_json<ExcelInsumoRow>(hoja);
 
-const filas = filasRaw.filter((fila: any) => {
-  const nombre = String(fila.nombre || "").trim();
-  const familia = String(fila.familia || "").trim();
+      const filas = filasRaw.filter((fila) => {
+        const nombre = String(fila.nombre || "").trim();
+        const familia = String(fila.familia || "").trim();
 
-  return nombre !== "" || familia !== "";
-});
+        return nombre !== "" || familia !== "";
+      });
 
       if (filas.length === 0) {
         throw new Error("El archivo está vacío.");
       }
 
-      const payload = filas.map((fila: any) => {
+      const payload = filas.map((fila) => {
         const familiaTexto = String(fila.familia || "").trim();
 
         const familiaEncontrada = familiasInsumos.find(
@@ -1446,37 +1484,6 @@ if (!familiaEncontrada) {
     }
   }
 
-  function ModuleCard({
-    id,
-    title,
-    description,
-  }: {
-    id: VistaModulo;
-    title: string;
-    description: string;
-  }) {
-    const active = vistaModulo === id;
-
-    return (
-      <button
-        type="button"
-        onClick={() => setVistaModulo(id)}
-        className={`rounded-xl border px-4 py-3 text-left shadow-sm transition-colors ${
-          active
-            ? "border-slate-900 bg-slate-900 text-white"
-            : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
-        }`}
-      >
-        <h2 className={active ? "text-sm font-bold text-white" : "text-sm font-bold text-slate-900"}>
-          {title}
-        </h2>
-        <p className={active ? "mt-1 text-xs text-slate-300" : "mt-1 text-xs text-slate-500"}>
-          {description}
-        </p>
-      </button>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="flex min-h-screen">
@@ -1515,16 +1522,22 @@ if (!familiaEncontrada) {
               id="recetas"
               title="Recetas"
               description="Crear, ver y editar recetas"
+              active={vistaModulo === "recetas"}
+              onSelect={setVistaModulo}
             />
             <ModuleCard
               id="costos"
               title="Costos"
               description="Márgenes, alertas y precios sugeridos"
+              active={vistaModulo === "costos"}
+              onSelect={setVistaModulo}
             />
             <ModuleCard
               id="insumos"
               title="Insumos maestros"
               description="Base maestra, Excel y edición"
+              active={vistaModulo === "insumos"}
+              onSelect={setVistaModulo}
             />
 
           </div>
@@ -1961,13 +1974,6 @@ onClick={async () => {
                                   : getInsumo(detalle.insumo_id ?? "")?.nombre;
                             const costoDetalle = costoDetalleVista(detalle);
                               
-
-                              const costo =
-                            detalle.tipo_item === "subreceta"
-                              ? (getSubreceta(detalle.subreceta_id ?? "")?.costo_unitario_calculado || 0) *
-                              detalle.cantidad_uso
-                              : (getInsumo(detalle.insumo_id ?? "")?.costo_unitario_uso || 0) *
-                                detalle.cantidad_uso;
 
                               return (
                                 <tr key={detalle.id} className="border-t bg-white hover:bg-slate-50">
@@ -2666,10 +2672,7 @@ onClick={async () => {
                     <Label title="Unidad del contenido">
                       <select
                         value={nuevoUnidadFormato}
-                        onChange={(e) => {
-                          setNuevoUnidadFormato(e.target.value);
-                          setNuevoUnidadReferencia(e.target.value);
-                        }}
+                        onChange={(e) => setNuevoUnidadFormato(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
                       >
                         <option value="kg">kg</option>

@@ -18,12 +18,11 @@ export default function Sidebar() {
   const [role, setRole] = useState<Role>("trabajador");
   const [customItems, setCustomItems] = useState<PermissionItem[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem("emporio-sidebar-collapsed");
-    setCollapsed(saved === "true");
-  }, []);
+  const [collapsed, setCollapsed] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("emporio-sidebar-collapsed") === "true"
+  );
 
   useEffect(() => {
     const supabase = createClient();

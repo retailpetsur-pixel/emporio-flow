@@ -120,7 +120,6 @@ export default function ProduccionPage() {
   const [produccion, setProduccion] = useState<ProduccionReceta[]>([]);
   const [planes, setPlanes] = useState<PlanSemanal[]>([]);
   const [cierres, setCierres] = useState<CierreOperativo[]>([]);
-  const [cargando, setCargando] = useState(true);
 
   const [planRecetaId, setPlanRecetaId] = useState("");
   const [planProductoManual, setPlanProductoManual] = useState("");
@@ -148,8 +147,6 @@ export default function ProduccionPage() {
   );
 
   async function cargar() {
-    setCargando(true);
-
     const [recetasRes, produccionRes, planesRes, cierresRes] = await Promise.all([
       supabase
         .from("recetas")
@@ -182,13 +179,13 @@ export default function ProduccionPage() {
     setProduccion((produccionRes.data ?? []) as ProduccionReceta[]);
     setPlanes((planesRes.data ?? []) as PlanSemanal[]);
     setCierres((cierresRes.data ?? []) as CierreOperativo[]);
-
-    setCargando(false);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     cargar();
   }, [semanaInicio]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   const recetasPlanificables = useMemo(
     () =>
@@ -202,22 +199,6 @@ export default function ProduccionPage() {
 
   function getReceta(id: string) {
     return recetas.find((r) => r.id === id);
-  }
-
-  function producidoSemana(recetaId: string | null) {
-    if (!recetaId) return 0;
-
-    return produccion
-      .filter((p) => p.receta_id === recetaId)
-      .reduce((sum, p) => sum + Number(p.cantidad_producida || 0), 0);
-  }
-
-  function producidoDia(recetaId: string | null, fecha: string) {
-    if (!recetaId) return 0;
-
-    return produccion
-      .filter((p) => p.receta_id === recetaId && p.fecha === fecha)
-      .reduce((sum, p) => sum + Number(p.cantidad_producida || 0), 0);
   }
 
   function cierreDia(recetaId: string | null, fecha: string) {

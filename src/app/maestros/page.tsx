@@ -64,10 +64,10 @@ export default function MaestrosPage() {
   const [insumoNombre, setInsumoNombre] = useState("");
   const [insumoCategoriaId, setInsumoCategoriaId] = useState("");
   const [precioReferencia, setPrecioReferencia] = useState("");
-  const [unidadReferencia, setUnidadReferencia] = useState("kg");
+  const unidadReferencia = "kg";
   const [cantidadFormato, setCantidadFormato] = useState("1");
-  const [unidadFormato, setUnidadFormato] = useState("kg");
-  const [unidadUso, setUnidadUso] = useState("grs");
+  const unidadFormato = "kg";
+  const unidadUso = "grs";
 
   const [productoNombre, setProductoNombre] = useState("");
   const [productoCategoriaId, setProductoCategoriaId] = useState("");
@@ -109,9 +109,11 @@ export default function MaestrosPage() {
     setProductos((productosRes.data ?? []) as Producto[]);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     cargarDatos();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   async function crearCategoriaInsumo() {
     try {
