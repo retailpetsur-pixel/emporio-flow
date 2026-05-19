@@ -1,5 +1,3 @@
-import Sidebar from "@/components/emporio/sidebar";
-import Topbar from "@/components/emporio/topbar";
 import { supabase } from "@/lib/supabase";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
@@ -157,17 +155,17 @@ function StatCard({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:p-5">
+    <div className="min-h-40 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
-        <p className="text-sm text-slate-500">{title}</p>
+        <p className="text-sm font-semibold text-slate-500">{title}</p>
         <span
-          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${toneStyles[tone]}`}
+          className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${toneStyles[tone]}`}
         >
-          <DashboardIcon name={icon} />
+          <DashboardIcon name={icon} className="h-6 w-6" />
         </span>
       </div>
-      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
-      {helper ? <p className="mt-2 text-xs text-slate-500">{helper}</p> : null}
+      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
+      {helper ? <p className="mt-3 text-sm leading-5 text-slate-600">{helper}</p> : null}
     </div>
   );
 }
@@ -188,30 +186,25 @@ function ModuleCard({
   return (
     <a
       href={href}
-      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md xl:p-5"
+      className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
     >
-      <div className="flex min-h-36 flex-col justify-between gap-4">
+      <div className="flex min-h-48 flex-col justify-between gap-5">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-emerald-50 group-hover:text-emerald-700">
-              <DashboardIcon name={icon} />
-            </span>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-              <p className="mt-1.5 text-sm leading-5 text-slate-500">
-                {description}
-              </p>
-            </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-950">{title}</h3>
+            {metric ? (
+              <p className="mt-2 text-2xl font-bold text-slate-950">{metric}</p>
+            ) : null}
           </div>
-          {metric ? (
-            <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {metric}
-            </span>
-          ) : null}
+          <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-emerald-50 group-hover:text-emerald-700">
+            <DashboardIcon name={icon} className="h-7 w-7" />
+          </span>
         </div>
 
-        <span className="inline-flex w-fit rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition group-hover:bg-emerald-700">
-          Abrir
+        <p className="text-sm leading-6 text-slate-600">{description}</p>
+
+        <span className="text-sm font-bold text-emerald-700 transition group-hover:text-emerald-800">
+          Abrir módulo
         </span>
       </div>
     </a>
@@ -232,39 +225,35 @@ function ModuleGroupCard({
   links: Array<{ label: string; href: string; icon: IconName }>;
 }) {
   return (
-    <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm xl:p-5">
-      <div className="flex min-h-40 flex-col justify-between gap-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex min-h-56 flex-col justify-between gap-5">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-              <DashboardIcon name={icon} />
-            </span>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-              <p className="mt-1.5 max-w-xl text-sm leading-5 text-slate-500">
-                {description}
-              </p>
-            </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-950">{title}</h3>
+            {metric ? (
+              <p className="mt-2 text-2xl font-bold text-slate-950">{metric}</p>
+            ) : null}
           </div>
-          {metric ? (
-            <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-              {metric}
-            </span>
-          ) : null}
+          <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <DashboardIcon name={icon} className="h-7 w-7" />
+          </span>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-1">
+        <p className="max-w-xl text-sm leading-6 text-slate-600">
+          {description}
+        </p>
+
+        <div className="flex flex-wrap gap-4">
           {links.map((link, index) => (
             <a
               key={link.href}
               href={link.href}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
+              className={`inline-flex items-center gap-2 text-sm font-bold transition ${
                 index === 0
-                  ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                  : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  ? "text-emerald-700 hover:text-emerald-800"
+                  : "text-slate-600 hover:text-slate-950"
               }`}
             >
-              <DashboardIcon name={link.icon} className="h-4 w-4" />
               {link.label}
             </a>
           ))}
@@ -697,16 +686,41 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="flex min-h-screen">
-        <Sidebar />
+      <div className="mx-auto w-full max-w-[1480px] px-5 py-8 md:px-8 xl:py-12">
+        <header className="mb-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-600">
+              Sistema de gestión
+            </p>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
+              Emporio Flow
+            </h1>
+            <p className="mt-3 max-w-xl text-lg leading-7 text-slate-600">
+              Control operativo, costos, inventario y producción diaria.
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-500">
+              Perfil activo: {currentRole}
+            </p>
+          </div>
 
-        <section className="flex-1">
-          <Topbar
-            title="Dashboard General"
-            subtitle="Centro de mando operativo"
-          />
+          <div className="flex flex-wrap gap-3 md:justify-end">
+            <a
+              href="/configuracion"
+              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              Configuración
+            </a>
+            <form action="/auth/sign-out" method="post">
+              <button
+                type="submit"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                Salir
+              </button>
+            </form>
+          </div>
+        </header>
 
-          <div className="p-6">
             {errores.length > 0 ? (
               <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
                 Error cargando datos: {errores[0]}
@@ -744,20 +758,16 @@ export default async function DashboardPage() {
               />
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:p-6">
+            <div className="mt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-xl font-bold text-slate-950">
                     Módulos del sistema
                   </h3>
                   <p className="text-sm text-slate-500">
                     Accesos rápidos según el perfil activo
                   </p>
                 </div>
-
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  Rol: {currentRole}
-                </span>
               </div>
 
               <div className="mt-5 grid gap-4 xl:grid-cols-2">
@@ -1014,8 +1024,6 @@ export default async function DashboardPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
       </div>
     </main>
   );
