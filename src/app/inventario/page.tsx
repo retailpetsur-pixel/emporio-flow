@@ -21,6 +21,7 @@ type Producto = {
 type InsumoCosteo = {
   id: string;
   nombre: string;
+  familia_id: string | null;
   unidad_uso: string | null;
   unidad_referencia: string | null;
   unidad_formato_compra: string | null;
@@ -29,6 +30,11 @@ type InsumoCosteo = {
   costo_unitario_uso: number | null;
   stock_actual: number | null;
   stock_minimo: number | null;
+};
+
+type Familia = {
+  id: string;
+  nombre: string;
 };
 
 function money(v: number) {
@@ -89,6 +95,18 @@ function estadoProducto(
   if (stockMinimo > 0 && stockActual <= stockMinimo) return "critical";
   if (stockMaximo > 0 && stockActual > stockMaximo) return "overstock";
   return "normal";
+}
+
+function normalizarTexto(valor: string) {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function esTexto(valor: string | undefined): valor is string {
+  return Boolean(valor);
 }
 
 async function ajustarStockProducto(formData: FormData) {
@@ -196,13 +214,29 @@ function StatusBadge({ status }: { status: InventoryStatus }) {
 export default async function InventarioPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ estado?: string; mensaje?: string }>;
+  searchParams?: Promise<{
+    estado?: string;
+    mensaje?: string;
+    q?: string;
+    categoria?: string;
+    tipo?: string;
+    estado_stock?: string;
+  }>;
 }) {
   const params = await searchParams;
   const mensaje = params?.mensaje;
   const estadoMensaje = params?.estado === "ok" ? "ok" : "error";
+  const busqueda = String(params?.q ?? "").trim();
+  const filtroCategoria = String(params?.categoria ?? "");
+  const filtroTipo = String(params?.tipo ?? "");
+  const filtroEstadoStock = String(params?.estado_stock ?? "");
+  const busquedaNormalizada = normalizarTexto(busqueda);
 
-  const [{ data, error }, { data: insumosData, error: insumosError }] =
+  const [
+    { data, error },
+    { data: insumosData, error: insumosError },
+    { data: familiasData },
+  ] =
     await Promise.all([
       supabase
         .from("productos")
@@ -211,14 +245,65 @@ export default async function InventarioPage({
       supabase
         .from("insumos_costeo")
         .select(
-          "id,nombre,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_unitario_uso,stock_actual,stock_minimo"
+          "id,nombre,familia_id,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_unitario_uso,stock_actual,stock_minimo"
         )
+        .eq("activo", true)
+        .order("nombre", { ascending: true }),
+      supabase
+        .from("familias_productos")
+        .select("id,nombre")
         .eq("activo", true)
         .order("nombre", { ascending: true }),
     ]);
 
   const productos: Producto[] = data ?? [];
   const insumos: InsumoCosteo[] = insumosData ?? [];
+  const familias: Familia[] = familiasData ?? [];
+  const familiaPorId = new Map(familias.map((familia) => [familia.id, familia.nombre]));
+
+  const categoriaOpciones = Array.from(
+    new Set([
+      ...productos.map((item) => item.categoria).filter(esTexto),
+      ...insumos
+        .map((item) => familiaPorId.get(item.familia_id ?? ""))
+        .filter(esTexto),
+    ])
+  ).sort((a, b) => a.localeCompare(b, "es"));
+
+  const sugerencias = Array.from(
+    new Set([...productos.map((item) => item.nombre), ...insumos.map((item) => item.nombre)])
+  )
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "es"))
+    .slice(0, 80);
+
+  const productosFiltrados = productos.filter((item) => {
+    const coincideTexto =
+      !busquedaNormalizada ||
+      normalizarTexto(`${item.nombre} ${item.tipo} ${item.categoria}`).includes(
+        busquedaNormalizada
+      );
+    const coincideCategoria =
+      !filtroCategoria || item.categoria === filtroCategoria;
+    const coincideTipo = !filtroTipo || item.tipo === filtroTipo;
+    const coincideEstado =
+      !filtroEstadoStock || item.estado === filtroEstadoStock;
+
+    return coincideTexto && coincideCategoria && coincideTipo && coincideEstado;
+  });
+
+  const insumosFiltrados = insumos.filter((item) => {
+    const familia = familiaPorId.get(item.familia_id ?? "") ?? "";
+    const estado = estadoInsumo(item);
+    const coincideTexto =
+      !busquedaNormalizada ||
+      normalizarTexto(`${item.nombre} ${familia}`).includes(busquedaNormalizada);
+    const coincideCategoria = !filtroCategoria || familia === filtroCategoria;
+    const coincideTipo = !filtroTipo || filtroTipo === "Insumo";
+    const coincideEstado = !filtroEstadoStock || estado === filtroEstadoStock;
+
+    return coincideTexto && coincideCategoria && coincideTipo && coincideEstado;
+  });
 
   const totalItems = productos.length;
   const criticalItems = productos.filter((p) => p.estado === "critical").length;
@@ -278,6 +363,104 @@ export default async function InventarioPage({
                   Registrar entrada
                 </a>
               </div>
+            </div>
+
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Buscar en inventario
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Filtra por nombre, familia, tipo o estado de stock.
+                  </p>
+                </div>
+                {(busqueda || filtroCategoria || filtroTipo || filtroEstadoStock) ? (
+                  <a
+                    href="/inventario"
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Limpiar filtros
+                  </a>
+                ) : null}
+              </div>
+
+              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className="xl:col-span-2">
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Buscar texto
+                  </label>
+                  <input
+                    name="q"
+                    list="inventario-sugerencias"
+                    defaultValue={busqueda}
+                    placeholder="Ej: mozzarella, harina, empanada..."
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  />
+                  <datalist id="inventario-sugerencias">
+                    {sugerencias.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Familia / categoría
+                  </label>
+                  <select
+                    name="categoria"
+                    defaultValue={filtroCategoria}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todas</option>
+                    {categoriaOpciones.map((categoria) => (
+                      <option key={categoria} value={categoria}>
+                        {categoria}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Tipo
+                  </label>
+                  <select
+                    name="tipo"
+                    defaultValue={filtroTipo}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todos</option>
+                    <option value="Insumo">Insumo</option>
+                    <option value="Subproducto">Subproducto</option>
+                    <option value="Producto final">Producto final</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Estado
+                  </label>
+                  <select
+                    name="estado_stock"
+                    defaultValue={filtroEstadoStock}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todos</option>
+                    <option value="critical">Crítico</option>
+                    <option value="normal">Normal</option>
+                    <option value="overstock">Sobre stock</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 md:col-span-2 xl:col-span-5"
+                >
+                  Aplicar búsqueda
+                </button>
+              </form>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -340,14 +523,14 @@ export default async function InventarioPage({
                     </thead>
 
                     <tbody>
-                      {insumos.length === 0 ? (
+                      {insumosFiltrados.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-4 py-4 text-slate-500">
-                            Aún no hay insumos registrados para valorizar.
+                            No hay insumos valorizados para esta búsqueda.
                           </td>
                         </tr>
                       ) : (
-                        insumos.map((item) => {
+                        insumosFiltrados.map((item) => {
                           const unidadStock =
                             item.unidad_referencia ??
                             item.unidad_formato_compra ??
@@ -455,7 +638,17 @@ export default async function InventarioPage({
                     </thead>
 
                     <tbody>
-                      {productos.map((item) => (
+                      {productosFiltrados.length === 0 ? (
+                        <tr className="bg-slate-50 text-sm text-slate-700">
+                          <td
+                            colSpan={9}
+                            className="rounded-2xl px-4 py-5 text-slate-500"
+                          >
+                            No hay existencias para esta búsqueda.
+                          </td>
+                        </tr>
+                      ) : (
+                      productosFiltrados.map((item) => (
                         <tr
                           key={item.id}
                           className="bg-slate-50 text-sm text-slate-700"
@@ -533,7 +726,8 @@ export default async function InventarioPage({
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      ))
+                      )}
                     </tbody>
                   </table>
                 </div>

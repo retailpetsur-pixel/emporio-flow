@@ -16,7 +16,7 @@ export const roleLabels: Record<Role, string> = {
 
 export const roleDescriptions: Record<Role, string> = {
   admin: "Acceso completo al sistema, configuración y permisos.",
-  gerencia: "Control operativo, reportes y configuración de usuarios.",
+  gerencia: "Control operativo, indicadores y configuración de usuarios.",
   supervisor: "Operación diaria, producción, personal y módulos clave.",
   compras: "Compras, inventario y seguimiento operativo.",
   trabajador: "Acceso operativo básico para producción, personal y biblioteca.",
@@ -62,11 +62,6 @@ export const allPermissionItems: PermissionItem[] = [
     label: "Biblioteca",
     href: "/biblioteca",
     description: "Procedimientos, manuales, recetarios y documentos.",
-  },
-  {
-    label: "Reportes",
-    href: "/reportes",
-    description: "Reportes de gestión y análisis.",
   },
   {
     label: "Configuración",
