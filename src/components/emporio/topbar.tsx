@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import MobileNav from "@/components/emporio/mobile-nav";
 
 type TopbarProps = {
@@ -7,6 +10,10 @@ type TopbarProps = {
 };
 
 export default function Topbar({ title, subtitle }: TopbarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const esDashboard = pathname === "/dashboard";
+
   return (
     <header className="border-b border-slate-200 bg-white px-4 py-4 md:px-6">
       <div className="flex flex-col gap-4">
@@ -19,6 +26,25 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
           </div>
 
           <div className="hidden items-center gap-3 xl:flex">
+            {!esDashboard ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Volver
+                </button>
+
+                <Link
+                  href="/dashboard"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:shadow-sm"
+                >
+                  Menú
+                </Link>
+              </>
+            ) : null}
+
             <Link
               href="/configuracion"
               className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:shadow-sm"
@@ -40,7 +66,26 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
         <div className="grid gap-3 xl:hidden">
           <MobileNav />
 
-          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+          <div className="grid grid-cols-2 items-stretch gap-2 sm:grid-cols-4">
+            {!esDashboard ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Volver
+                </button>
+
+                <Link
+                  href="/dashboard"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white"
+                >
+                  Menú
+                </Link>
+              </>
+            ) : null}
+
             <Link
               href="/configuracion"
               className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white"

@@ -430,7 +430,7 @@ export default async function InventarioPage({
                 </p>
               </summary>
 
-              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <form className="mt-5 grid gap-3 md:grid-cols-[1fr_260px_auto_auto]">
                 <input type="hidden" name="ex_q" value={busquedaExistencias} />
                 <input
                   type="hidden"
@@ -444,15 +444,12 @@ export default async function InventarioPage({
                   value={filtroEstadoExistencias}
                 />
 
-                <div className="xl:col-span-2">
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Buscar insumo
-                  </label>
+                <div>
                   <input
                     name="val_q"
                     list="inventario-valorizado-sugerencias"
                     defaultValue={busquedaValorizado}
-                    placeholder="Ej: mozzarella, harina, salsa..."
+                    placeholder="Buscar insumo..."
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
                   />
                   <datalist id="inventario-valorizado-sugerencias">
@@ -463,15 +460,12 @@ export default async function InventarioPage({
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Familia
-                  </label>
                   <select
                     name="val_familia"
                     defaultValue={filtroFamiliaValorizado}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
                   >
-                    <option value="">Todas</option>
+                    <option value="">Todas las familias</option>
                     {familiaOpciones.map((familia) => (
                       <option key={familia} value={familia}>
                         {familia}
@@ -480,28 +474,27 @@ export default async function InventarioPage({
                   </select>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                >
+                  Buscar
+                </button>
+
+                {(busquedaValorizado || filtroFamiliaValorizado) ? (
+                  <a
+                    href={`/inventario?ex_q=${encodeURIComponent(
+                      busquedaExistencias
+                    )}&ex_categoria=${encodeURIComponent(
+                      filtroCategoriaExistencias
+                    )}&ex_tipo=${encodeURIComponent(
+                      filtroTipoExistencias
+                    )}&ex_estado=${encodeURIComponent(filtroEstadoExistencias)}`}
+                    className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    Filtrar
-                  </button>
-                  {(busquedaValorizado || filtroFamiliaValorizado) ? (
-                    <a
-                      href={`/inventario?ex_q=${encodeURIComponent(
-                        busquedaExistencias
-                      )}&ex_categoria=${encodeURIComponent(
-                        filtroCategoriaExistencias
-                      )}&ex_tipo=${encodeURIComponent(
-                        filtroTipoExistencias
-                      )}&ex_estado=${encodeURIComponent(filtroEstadoExistencias)}`}
-                      className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Limpiar
-                    </a>
-                  ) : null}
-                </div>
+                    Limpiar
+                  </a>
+                ) : null}
               </form>
 
               {insumosError ? (
@@ -616,7 +609,7 @@ export default async function InventarioPage({
                 </p>
               </summary>
 
-              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_240px_180px_180px_auto_auto]">
                 <input type="hidden" name="val_q" value={busquedaValorizado} />
                 <input
                   type="hidden"
@@ -624,15 +617,12 @@ export default async function InventarioPage({
                   value={filtroFamiliaValorizado}
                 />
 
-                <div className="xl:col-span-2">
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Buscar producto
-                  </label>
+                <div>
                   <input
                     name="ex_q"
                     list="inventario-existencias-sugerencias"
                     defaultValue={busquedaExistencias}
-                    placeholder="Ej: empanada, disco, mozzarella..."
+                    placeholder="Buscar producto..."
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
                   />
                   <datalist id="inventario-existencias-sugerencias">
@@ -643,15 +633,12 @@ export default async function InventarioPage({
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Familia / categoría
-                  </label>
                   <select
                     name="ex_categoria"
                     defaultValue={filtroCategoriaExistencias}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
                   >
-                    <option value="">Todas</option>
+                    <option value="">Todas las familias</option>
                     {categoriaExistenciasOpciones.map((categoria) => (
                       <option key={categoria} value={categoria}>
                         {categoria}
@@ -661,9 +648,6 @@ export default async function InventarioPage({
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Tipo
-                  </label>
                   <select
                     name="ex_tipo"
                     defaultValue={filtroTipoExistencias}
@@ -677,9 +661,6 @@ export default async function InventarioPage({
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Estado
-                  </label>
                   <select
                     name="ex_estado"
                     defaultValue={filtroEstadoExistencias}
@@ -692,29 +673,28 @@ export default async function InventarioPage({
                   </select>
                 </div>
 
-                <div className="flex gap-2 md:col-span-2 xl:col-span-5">
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                >
+                  Buscar
+                </button>
+
+                {(busquedaExistencias ||
+                  filtroCategoriaExistencias ||
+                  filtroTipoExistencias ||
+                  filtroEstadoExistencias) ? (
+                  <a
+                    href={`/inventario?val_q=${encodeURIComponent(
+                      busquedaValorizado
+                    )}&val_familia=${encodeURIComponent(
+                      filtroFamiliaValorizado
+                    )}`}
+                    className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    Filtrar existencias
-                  </button>
-                  {(busquedaExistencias ||
-                    filtroCategoriaExistencias ||
-                    filtroTipoExistencias ||
-                    filtroEstadoExistencias) ? (
-                    <a
-                      href={`/inventario?val_q=${encodeURIComponent(
-                        busquedaValorizado
-                      )}&val_familia=${encodeURIComponent(
-                        filtroFamiliaValorizado
-                      )}`}
-                      className="rounded-xl border border-slate-200 px-5 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Limpiar
-                    </a>
-                  ) : null}
-                </div>
+                    Limpiar
+                  </a>
+                ) : null}
               </form>
 
               {error ? (
