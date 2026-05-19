@@ -16,6 +16,7 @@ type IconName =
   | "list"
   | "production"
   | "users";
+type ModuleTone = "emerald" | "amber" | "sky" | "violet" | "slate";
 
 function DashboardIcon({
   name,
@@ -134,6 +135,70 @@ function moduleIconForHref(href: string): IconName {
   return icons[href] ?? "list";
 }
 
+function moduleToneForHref(href: string): ModuleTone {
+  const tones: Record<string, ModuleTone> = {
+    "/inventario": "emerald",
+    "/recetas-costos": "sky",
+    "/compras": "amber",
+    "/produccion": "emerald",
+    "/cierre-turno": "sky",
+    "/usuarios": "violet",
+    "/configuracion": "slate",
+  };
+
+  return tones[href] ?? "slate";
+}
+
+const moduleToneStyles: Record<
+  ModuleTone,
+  {
+    bar: string;
+    icon: string;
+    primaryAction: string;
+    secondaryAction: string;
+  }
+> = {
+  emerald: {
+    bar: "bg-emerald-500",
+    icon: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+    primaryAction:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
+    secondaryAction:
+      "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800",
+  },
+  amber: {
+    bar: "bg-amber-400",
+    icon: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+    primaryAction:
+      "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
+    secondaryAction:
+      "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800",
+  },
+  sky: {
+    bar: "bg-sky-400",
+    icon: "bg-sky-50 text-sky-700 ring-1 ring-sky-100",
+    primaryAction: "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100",
+    secondaryAction:
+      "border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800",
+  },
+  violet: {
+    bar: "bg-violet-400",
+    icon: "bg-violet-50 text-violet-700 ring-1 ring-violet-100",
+    primaryAction:
+      "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100",
+    secondaryAction:
+      "border-slate-200 bg-white text-slate-700 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800",
+  },
+  slate: {
+    bar: "bg-slate-400",
+    icon: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+    primaryAction:
+      "border-slate-300 bg-slate-950 text-white hover:bg-slate-800",
+    secondaryAction:
+      "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+  },
+};
+
 function StatCard({
   title,
   value,
@@ -176,18 +241,23 @@ function ModuleCard({
   href,
   metric,
   icon,
+  tone,
 }: {
   title: string;
   description: string;
   href: string;
   metric?: string;
   icon: IconName;
+  tone: ModuleTone;
 }) {
+  const styles = moduleToneStyles[tone];
+
   return (
     <a
       href={href}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
     >
+      <span className={`absolute inset-x-0 top-0 h-1 ${styles.bar}`} />
       <div className="flex min-h-48 flex-col justify-between gap-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -196,14 +266,18 @@ function ModuleCard({
               <p className="mt-2 text-2xl font-bold text-slate-950">{metric}</p>
             ) : null}
           </div>
-          <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-emerald-50 group-hover:text-emerald-700">
-            <DashboardIcon name={icon} className="h-7 w-7" />
+          <span
+            className={`inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl transition ${styles.icon}`}
+          >
+            <DashboardIcon name={icon} className="h-10 w-10" />
           </span>
         </div>
 
         <p className="text-sm leading-6 text-slate-600">{description}</p>
 
-        <span className="text-sm font-bold text-emerald-700 transition group-hover:text-emerald-800">
+        <span
+          className={`inline-flex w-fit rounded-xl border px-4 py-2 text-sm font-bold transition ${styles.primaryAction}`}
+        >
           Abrir módulo
         </span>
       </div>
@@ -216,16 +290,21 @@ function ModuleGroupCard({
   description,
   metric,
   icon,
+  tone,
   links,
 }: {
   title: string;
   description: string;
   metric?: string;
   icon: IconName;
+  tone: ModuleTone;
   links: Array<{ label: string; href: string; icon: IconName }>;
 }) {
+  const styles = moduleToneStyles[tone];
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <span className={`absolute inset-x-0 top-0 h-1 ${styles.bar}`} />
       <div className="flex min-h-56 flex-col justify-between gap-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -234,8 +313,10 @@ function ModuleGroupCard({
               <p className="mt-2 text-2xl font-bold text-slate-950">{metric}</p>
             ) : null}
           </div>
-          <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-            <DashboardIcon name={icon} className="h-7 w-7" />
+          <span
+            className={`inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl ${styles.icon}`}
+          >
+            <DashboardIcon name={icon} className="h-10 w-10" />
           </span>
         </div>
 
@@ -248,12 +329,11 @@ function ModuleGroupCard({
             <a
               key={link.href}
               href={link.href}
-              className={`inline-flex items-center gap-2 text-sm font-bold transition ${
-                index === 0
-                  ? "text-emerald-700 hover:text-emerald-800"
-                  : "text-slate-600 hover:text-slate-950"
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${
+                index === 0 ? styles.primaryAction : styles.secondaryAction
               }`}
             >
+              <DashboardIcon name={link.icon} className="h-4 w-4" />
               {link.label}
             </a>
           ))}
@@ -777,6 +857,7 @@ export default async function DashboardPage() {
                     description="Stock valorizado, insumos maestros, recetas, márgenes y costos de producción."
                     metric={`${productosList.length} ítems`}
                     icon="box"
+                    tone="emerald"
                     links={gestionCostosLinks.map((module) => ({
                       label:
                         module.href === "/recetas-costos"
@@ -794,6 +875,7 @@ export default async function DashboardPage() {
                     description="Planificación semanal, producción diaria, vendibles, mermas y cierre operativo."
                     metric={`${produccionList.length} registros`}
                     icon="production"
+                    tone="sky"
                     links={operacionLinks.map((module) => ({
                       label: module.title,
                       href: module.href,
@@ -812,6 +894,7 @@ export default async function DashboardPage() {
                     href={module.href}
                     metric={module.metric}
                     icon={moduleIconForHref(module.href)}
+                    tone={moduleToneForHref(module.href)}
                   />
                 ))}
               </div>
