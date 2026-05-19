@@ -5,14 +5,11 @@ import type { ReactNode } from "react";
 
 type Role = "admin" | "gerencia" | "supervisor" | "trabajador" | "compras";
 type IconName =
-  | "alert"
   | "box"
   | "cart"
   | "chart"
   | "check"
-  | "clock"
   | "gear"
-  | "key"
   | "list"
   | "production"
   | "users";
@@ -37,13 +34,6 @@ function DashboardIcon({
   };
 
   const paths: Record<IconName, ReactNode> = {
-    alert: (
-      <>
-        <path d="M12 4 3 20h18L12 4Z" />
-        <path d="M12 9v5" />
-        <path d="M12 17h.01" />
-      </>
-    ),
     box: (
       <>
         <path d="M21 8 12 3 3 8l9 5 9-5Z" />
@@ -71,24 +61,10 @@ function DashboardIcon({
         <path d="M4 20h16" />
       </>
     ),
-    clock: (
-      <>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 8v5l3 2" />
-      </>
-    ),
     gear: (
       <>
         <circle cx="12" cy="12" r="3" />
         <path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.9-1.1L14.3 3h-4.6l-.4 2.9A7 7 0 0 0 7.4 7L5 6 3 9.4l2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.1l-2 1.5L5 18l2.4-1a7 7 0 0 0 1.9 1.1l.4 2.9h4.6l.4-2.9a7 7 0 0 0 1.9-1.1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1.1Z" />
-      </>
-    ),
-    key: (
-      <>
-        <circle cx="8" cy="14" r="4" />
-        <path d="M12 14h8" />
-        <path d="M17 14v3" />
-        <path d="M20 14v2" />
       </>
     ),
     list: (
@@ -198,42 +174,6 @@ const moduleToneStyles: Record<
       "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
   },
 };
-
-function StatCard({
-  title,
-  value,
-  helper,
-  icon,
-  tone = "slate",
-}: {
-  title: string;
-  value: string;
-  helper?: string;
-  icon: IconName;
-  tone?: "slate" | "emerald" | "amber" | "red";
-}) {
-  const toneStyles = {
-    slate: "bg-slate-100 text-slate-700",
-    emerald: "bg-emerald-50 text-emerald-700",
-    amber: "bg-amber-50 text-amber-700",
-    red: "bg-red-50 text-red-700",
-  };
-
-  return (
-    <div className="min-h-40 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm font-semibold text-slate-500">{title}</p>
-        <span
-          className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${toneStyles[tone]}`}
-        >
-          <DashboardIcon name={icon} className="h-6 w-6" />
-        </span>
-      </div>
-      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
-      {helper ? <p className="mt-3 text-sm leading-5 text-slate-600">{helper}</p> : null}
-    </div>
-  );
-}
 
 function ModuleCard({
   title,
@@ -807,38 +747,7 @@ export default async function DashboardPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                title="Productos críticos"
-                value={String(productosCriticos)}
-                helper="Bajo stock mínimo"
-                icon="alert"
-                tone={productosCriticos > 0 ? "red" : "emerald"}
-              />
-              <StatCard
-                title="Producción pendiente"
-                value={String(produccionPendiente)}
-                helper="Pendiente o en proceso"
-                icon="clock"
-                tone={produccionPendiente > 0 ? "amber" : "emerald"}
-              />
-              <StatCard
-                title="Compras sugeridas"
-                value={String(comprasSugeridas)}
-                helper="Stock actual <= mínimo"
-                icon="cart"
-                tone={comprasSugeridas > 0 ? "amber" : "emerald"}
-              />
-              <StatCard
-                title="Permisos pendientes"
-                value={String(permisosPendientes)}
-                helper="Pendiente o aprobación parcial"
-                icon="key"
-                tone={permisosPendientes > 0 ? "amber" : "emerald"}
-              />
-            </div>
-
-            <div className="mt-6">
+            <div>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-bold text-slate-950">
@@ -1068,7 +977,7 @@ export default async function DashboardPage() {
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Sectores cubiertos</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">
-                      {new Set((turnosList ?? []).map((item: any) => item.sector_id)).size}
+                      {new Set(turnosList.map((item) => item.sector_id)).size}
                     </p>
                   </div>
                 </div>
