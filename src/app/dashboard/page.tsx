@@ -527,7 +527,7 @@ export default async function DashboardPage() {
       },
       {
         title: "Compras",
-        description: "Compras sugeridas automáticas según faltantes reales.",
+        description: "Reposición automática según faltantes reales.",
         href: "/compras",
         metric: `${comprasSugeridas} sugeridas`,
       },
@@ -968,13 +968,6 @@ export default async function DashboardPage() {
                   </div>
 
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Permisos pendientes</p>
-                    <p className="mt-2 text-lg font-semibold text-amber-600">
-                      {permisosPendientes}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Sectores cubiertos</p>
                     <p className="mt-2 text-lg font-semibold text-slate-900">
                       {new Set(turnosList.map((item) => item.sector_id)).size}
@@ -996,10 +989,6 @@ export default async function DashboardPage() {
                   <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                     Cierres registrados:{" "}
                     <span className="font-semibold">{cierresList.length}</span>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    Compras sugeridas:{" "}
-                    <span className="font-semibold">{comprasSugeridas}</span>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                     Merma del día:{" "}
