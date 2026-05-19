@@ -217,20 +217,25 @@ export default async function InventarioPage({
   searchParams?: Promise<{
     estado?: string;
     mensaje?: string;
-    q?: string;
-    categoria?: string;
-    tipo?: string;
-    estado_stock?: string;
+    val_q?: string;
+    val_familia?: string;
+    ex_q?: string;
+    ex_categoria?: string;
+    ex_tipo?: string;
+    ex_estado?: string;
   }>;
 }) {
   const params = await searchParams;
   const mensaje = params?.mensaje;
   const estadoMensaje = params?.estado === "ok" ? "ok" : "error";
-  const busqueda = String(params?.q ?? "").trim();
-  const filtroCategoria = String(params?.categoria ?? "");
-  const filtroTipo = String(params?.tipo ?? "");
-  const filtroEstadoStock = String(params?.estado_stock ?? "");
-  const busquedaNormalizada = normalizarTexto(busqueda);
+  const busquedaValorizado = String(params?.val_q ?? "").trim();
+  const filtroFamiliaValorizado = String(params?.val_familia ?? "");
+  const busquedaExistencias = String(params?.ex_q ?? "").trim();
+  const filtroCategoriaExistencias = String(params?.ex_categoria ?? "");
+  const filtroTipoExistencias = String(params?.ex_tipo ?? "");
+  const filtroEstadoExistencias = String(params?.ex_estado ?? "");
+  const busquedaValorizadoNormalizada = normalizarTexto(busquedaValorizado);
+  const busquedaExistenciasNormalizada = normalizarTexto(busquedaExistencias);
 
   const [
     { data, error },
@@ -261,17 +266,27 @@ export default async function InventarioPage({
   const familias: Familia[] = familiasData ?? [];
   const familiaPorId = new Map(familias.map((familia) => [familia.id, familia.nombre]));
 
-  const categoriaOpciones = Array.from(
-    new Set([
-      ...productos.map((item) => item.categoria).filter(esTexto),
-      ...insumos
+  const familiaOpciones = Array.from(
+    new Set(
+      insumos
         .map((item) => familiaPorId.get(item.familia_id ?? ""))
-        .filter(esTexto),
-    ])
+        .filter(esTexto)
+    )
   ).sort((a, b) => a.localeCompare(b, "es"));
 
-  const sugerencias = Array.from(
-    new Set([...productos.map((item) => item.nombre), ...insumos.map((item) => item.nombre)])
+  const categoriaExistenciasOpciones = Array.from(
+    new Set(productos.map((item) => item.categoria).filter(esTexto))
+  ).sort((a, b) => a.localeCompare(b, "es"));
+
+  const sugerenciasInsumos = Array.from(
+    new Set(insumos.map((item) => item.nombre))
+  )
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "es"))
+    .slice(0, 80);
+
+  const sugerenciasExistencias = Array.from(
+    new Set(productos.map((item) => item.nombre))
   )
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "es"))
@@ -279,30 +294,31 @@ export default async function InventarioPage({
 
   const productosFiltrados = productos.filter((item) => {
     const coincideTexto =
-      !busquedaNormalizada ||
+      !busquedaExistenciasNormalizada ||
       normalizarTexto(`${item.nombre} ${item.tipo} ${item.categoria}`).includes(
-        busquedaNormalizada
+        busquedaExistenciasNormalizada
       );
     const coincideCategoria =
-      !filtroCategoria || item.categoria === filtroCategoria;
-    const coincideTipo = !filtroTipo || item.tipo === filtroTipo;
+      !filtroCategoriaExistencias || item.categoria === filtroCategoriaExistencias;
+    const coincideTipo =
+      !filtroTipoExistencias || item.tipo === filtroTipoExistencias;
     const coincideEstado =
-      !filtroEstadoStock || item.estado === filtroEstadoStock;
+      !filtroEstadoExistencias || item.estado === filtroEstadoExistencias;
 
     return coincideTexto && coincideCategoria && coincideTipo && coincideEstado;
   });
 
   const insumosFiltrados = insumos.filter((item) => {
     const familia = familiaPorId.get(item.familia_id ?? "") ?? "";
-    const estado = estadoInsumo(item);
     const coincideTexto =
-      !busquedaNormalizada ||
-      normalizarTexto(`${item.nombre} ${familia}`).includes(busquedaNormalizada);
-    const coincideCategoria = !filtroCategoria || familia === filtroCategoria;
-    const coincideTipo = !filtroTipo || filtroTipo === "Insumo";
-    const coincideEstado = !filtroEstadoStock || estado === filtroEstadoStock;
+      !busquedaValorizadoNormalizada ||
+      normalizarTexto(`${item.nombre} ${familia}`).includes(
+        busquedaValorizadoNormalizada
+      );
+    const coincideCategoria =
+      !filtroFamiliaValorizado || familia === filtroFamiliaValorizado;
 
-    return coincideTexto && coincideCategoria && coincideTipo && coincideEstado;
+    return coincideTexto && coincideCategoria;
   });
 
   const totalItems = productos.length;
@@ -365,104 +381,6 @@ export default async function InventarioPage({
               </div>
             </div>
 
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    Buscar en inventario
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Filtra por nombre, familia, tipo o estado de stock.
-                  </p>
-                </div>
-                {(busqueda || filtroCategoria || filtroTipo || filtroEstadoStock) ? (
-                  <a
-                    href="/inventario"
-                    className="rounded-xl border border-slate-200 px-4 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    Limpiar filtros
-                  </a>
-                ) : null}
-              </div>
-
-              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <div className="xl:col-span-2">
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Buscar texto
-                  </label>
-                  <input
-                    name="q"
-                    list="inventario-sugerencias"
-                    defaultValue={busqueda}
-                    placeholder="Ej: mozzarella, harina, empanada..."
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
-                  />
-                  <datalist id="inventario-sugerencias">
-                    {sugerencias.map((item) => (
-                      <option key={item} value={item} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Familia / categoría
-                  </label>
-                  <select
-                    name="categoria"
-                    defaultValue={filtroCategoria}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
-                  >
-                    <option value="">Todas</option>
-                    {categoriaOpciones.map((categoria) => (
-                      <option key={categoria} value={categoria}>
-                        {categoria}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Tipo
-                  </label>
-                  <select
-                    name="tipo"
-                    defaultValue={filtroTipo}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
-                  >
-                    <option value="">Todos</option>
-                    <option value="Insumo">Insumo</option>
-                    <option value="Subproducto">Subproducto</option>
-                    <option value="Producto final">Producto final</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Estado
-                  </label>
-                  <select
-                    name="estado_stock"
-                    defaultValue={filtroEstadoStock}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
-                  >
-                    <option value="">Todos</option>
-                    <option value="critical">Crítico</option>
-                    <option value="normal">Normal</option>
-                    <option value="overstock">Sobre stock</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 md:col-span-2 xl:col-span-5"
-                >
-                  Aplicar búsqueda
-                </button>
-              </form>
-            </div>
-
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Ítems activos" value={String(totalItems)} />
               <StatCard title="Críticos" value={String(criticalItems)} />
@@ -470,8 +388,12 @@ export default async function InventarioPage({
               <StatCard title="Normales" value={String(normalItems)} />
             </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <details
+              open
+              className="group mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
                     Inventario valorizado
@@ -502,7 +424,85 @@ export default async function InventarioPage({
                     </p>
                   </div>
                 </div>
-              </div>
+                </div>
+                <p className="mt-3 text-xs font-semibold text-slate-500 group-open:hidden">
+                  Clic para desplegar
+                </p>
+              </summary>
+
+              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <input type="hidden" name="ex_q" value={busquedaExistencias} />
+                <input
+                  type="hidden"
+                  name="ex_categoria"
+                  value={filtroCategoriaExistencias}
+                />
+                <input type="hidden" name="ex_tipo" value={filtroTipoExistencias} />
+                <input
+                  type="hidden"
+                  name="ex_estado"
+                  value={filtroEstadoExistencias}
+                />
+
+                <div className="xl:col-span-2">
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Buscar insumo
+                  </label>
+                  <input
+                    name="val_q"
+                    list="inventario-valorizado-sugerencias"
+                    defaultValue={busquedaValorizado}
+                    placeholder="Ej: mozzarella, harina, salsa..."
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  />
+                  <datalist id="inventario-valorizado-sugerencias">
+                    {sugerenciasInsumos.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Familia
+                  </label>
+                  <select
+                    name="val_familia"
+                    defaultValue={filtroFamiliaValorizado}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todas</option>
+                    {familiaOpciones.map((familia) => (
+                      <option key={familia} value={familia}>
+                        {familia}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                  >
+                    Filtrar
+                  </button>
+                  {(busquedaValorizado || filtroFamiliaValorizado) ? (
+                    <a
+                      href={`/inventario?ex_q=${encodeURIComponent(
+                        busquedaExistencias
+                      )}&ex_categoria=${encodeURIComponent(
+                        filtroCategoriaExistencias
+                      )}&ex_tipo=${encodeURIComponent(
+                        filtroTipoExistencias
+                      )}&ex_estado=${encodeURIComponent(filtroEstadoExistencias)}`}
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Limpiar
+                    </a>
+                  ) : null}
+                </div>
+              </form>
 
               {insumosError ? (
                 <div className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -578,10 +578,14 @@ export default async function InventarioPage({
                   </table>
                 </div>
               )}
-            </div>
+            </details>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <details
+              open
+              className="group mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
                     Inventario de existencias
@@ -606,7 +610,112 @@ export default async function InventarioPage({
                     Ver compras sugeridas
                   </a>
                 </div>
-              </div>
+                </div>
+                <p className="mt-3 text-xs font-semibold text-slate-500 group-open:hidden">
+                  Clic para desplegar
+                </p>
+              </summary>
+
+              <form className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <input type="hidden" name="val_q" value={busquedaValorizado} />
+                <input
+                  type="hidden"
+                  name="val_familia"
+                  value={filtroFamiliaValorizado}
+                />
+
+                <div className="xl:col-span-2">
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Buscar producto
+                  </label>
+                  <input
+                    name="ex_q"
+                    list="inventario-existencias-sugerencias"
+                    defaultValue={busquedaExistencias}
+                    placeholder="Ej: empanada, disco, mozzarella..."
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  />
+                  <datalist id="inventario-existencias-sugerencias">
+                    {sugerenciasExistencias.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Familia / categoría
+                  </label>
+                  <select
+                    name="ex_categoria"
+                    defaultValue={filtroCategoriaExistencias}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todas</option>
+                    {categoriaExistenciasOpciones.map((categoria) => (
+                      <option key={categoria} value={categoria}>
+                        {categoria}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Tipo
+                  </label>
+                  <select
+                    name="ex_tipo"
+                    defaultValue={filtroTipoExistencias}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todos</option>
+                    <option value="Insumo">Insumo</option>
+                    <option value="Subproducto">Subproducto</option>
+                    <option value="Producto final">Producto final</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Estado
+                  </label>
+                  <select
+                    name="ex_estado"
+                    defaultValue={filtroEstadoExistencias}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-400"
+                  >
+                    <option value="">Todos</option>
+                    <option value="critical">Crítico</option>
+                    <option value="normal">Normal</option>
+                    <option value="overstock">Sobre stock</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2 md:col-span-2 xl:col-span-5">
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                  >
+                    Filtrar existencias
+                  </button>
+                  {(busquedaExistencias ||
+                    filtroCategoriaExistencias ||
+                    filtroTipoExistencias ||
+                    filtroEstadoExistencias) ? (
+                    <a
+                      href={`/inventario?val_q=${encodeURIComponent(
+                        busquedaValorizado
+                      )}&val_familia=${encodeURIComponent(
+                        filtroFamiliaValorizado
+                      )}`}
+                      className="rounded-xl border border-slate-200 px-5 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Limpiar
+                    </a>
+                  ) : null}
+                </div>
+              </form>
 
               {error ? (
                 <div className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -733,7 +842,7 @@ export default async function InventarioPage({
                 </div>
                 </>
               )}
-            </div>
+            </details>
           </div>
         </section>
       </div>
