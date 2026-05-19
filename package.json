@@ -6,16 +6,18 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest",
+    "check:schema": "node scripts/check-supabase-schema.mjs",
+    "check": "npm run lint && npm test -- --run && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.0",
     "exceljs": "^4.4.0",
-    "next": "16.2.4",
+    "next": "^16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "xlsx": "^0.18.5"
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -23,8 +25,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.6"
   }
 }

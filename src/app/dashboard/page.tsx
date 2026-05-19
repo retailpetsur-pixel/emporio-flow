@@ -303,6 +303,39 @@ function AlertItem({
   );
 }
 
+function ActionRow({
+  title,
+  description,
+  href,
+  action,
+  tone = "neutral",
+}: {
+  title: string;
+  description: string;
+  href: string;
+  action: string;
+  tone?: "danger" | "warning" | "neutral";
+}) {
+  const styles = {
+    danger: "border-red-100 bg-red-50 text-red-800",
+    warning: "border-amber-100 bg-amber-50 text-amber-800",
+    neutral: "border-slate-200 bg-slate-50 text-slate-800",
+  };
+
+  return (
+    <a
+      href={href}
+      className={`flex flex-col gap-3 rounded-xl border px-4 py-3 transition hover:border-slate-300 hover:bg-white md:flex-row md:items-center md:justify-between ${styles[tone]}`}
+    >
+      <span>
+        <span className="block text-sm font-bold">{title}</span>
+        <span className="mt-1 block text-sm opacity-80">{description}</span>
+      </span>
+      <span className="text-sm font-bold">{action}</span>
+    </a>
+  );
+}
+
 function MiniBar({
   label,
   value,
@@ -505,6 +538,54 @@ export default async function DashboardPage() {
   if (alertas.length === 0) {
     alertas.push({
       text: "No hay alertas activas por ahora.",
+      tone: "neutral",
+    });
+  }
+
+  const accionesOperativas: Array<{
+    title: string;
+    description: string;
+    href: string;
+    action: string;
+    tone?: "danger" | "warning" | "neutral";
+  }> = [];
+
+  if (productosCriticos > 0 || comprasSugeridas > 0) {
+    accionesOperativas.push({
+      title: "Revisar reposición",
+      description: `${comprasSugeridas} insumo(s) requieren atención de compra.`,
+      href: "/compras",
+      action: "Abrir compras",
+      tone: productosCriticos > 0 ? "danger" : "warning",
+    });
+  }
+
+  if (produccionPendiente > 0) {
+    accionesOperativas.push({
+      title: "Destrabar producción",
+      description: `${produccionPendiente} registro(s) siguen sin cierre operativo.`,
+      href: "/produccion",
+      action: "Ver producción",
+      tone: "warning",
+    });
+  }
+
+  if (permisosPendientes > 0) {
+    accionesOperativas.push({
+      title: "Revisar solicitudes del equipo",
+      description: `${permisosPendientes} solicitud(es) necesitan revisión.`,
+      href: "/usuarios",
+      action: "Ver personal",
+      tone: "warning",
+    });
+  }
+
+  if (accionesOperativas.length === 0) {
+    accionesOperativas.push({
+      title: "Operación sin bloqueos críticos",
+      description: "No hay acciones urgentes detectadas para el perfil activo.",
+      href: "/produccion",
+      action: "Ver operación",
       tone: "neutral",
     });
   }
@@ -746,6 +827,26 @@ export default async function DashboardPage() {
                 Error cargando datos: {errores[0]}
               </div>
             ) : null}
+
+            <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-950">
+                    Prioridades de hoy
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Acciones recomendadas según datos operativos actuales.
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-slate-500">{hoy}</p>
+              </div>
+
+              <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                {accionesOperativas.slice(0, 3).map((accion) => (
+                  <ActionRow key={accion.title} {...accion} />
+                ))}
+              </div>
+            </section>
 
             <div>
               <div className="flex items-center justify-between">

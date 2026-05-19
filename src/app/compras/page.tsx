@@ -1,5 +1,7 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
+import { purchasePriority, stockValue, suggestedFormats } from "@/lib/domain/inventory";
+import { calculatePurchaseCost } from "@/lib/domain/purchasing";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -27,63 +29,6 @@ function money(v: number) {
     currency: "CLP",
     maximumFractionDigits: 0,
   }).format(v || 0);
-}
-
-function normalizarUnidad(unidad: string) {
-  const u = unidad.trim().toLowerCase();
-
-  if (["gr", "grs", "g", "gramo", "gramos"].includes(u)) return "grs";
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos"].includes(u)) return "kg";
-  if (["ml", "mililitro", "mililitros"].includes(u)) return "ml";
-  if (["lt", "lts", "litro", "litros"].includes(u)) return "litros";
-  if (["un", "unidad", "unidades", "u"].includes(u)) return "un";
-
-  return u;
-}
-
-function factorCantidad(desde: string, hacia: string) {
-  const from = normalizarUnidad(desde);
-  const to = normalizarUnidad(hacia);
-
-  if (from === to) return 1;
-  if (from === "kg" && to === "grs") return 1000;
-  if (from === "grs" && to === "kg") return 1 / 1000;
-  if (from === "litros" && to === "ml") return 1000;
-  if (from === "ml" && to === "litros") return 1 / 1000;
-
-  return 1;
-}
-
-function convertirCantidad(cantidad: number, desde: string, hacia: string) {
-  return cantidad * factorCantidad(desde, hacia);
-}
-
-function definirPrioridad(stockActual: number, stockMinimo: number): Priority {
-  if (stockActual <= 0) return "Alta";
-  if (stockActual < stockMinimo) return "Alta";
-  if (stockActual === stockMinimo) return "Media";
-  return "Baja";
-}
-
-function formatosSugeridos(insumo: Insumo) {
-  const stockActual = Number(insumo.stock_actual ?? 0);
-  const stockMinimo = Number(insumo.stock_minimo ?? 0);
-  const contenidoFormato = Number(insumo.cantidad_formato_compra ?? 1);
-  const faltante = Math.max(stockMinimo - stockActual, 0);
-
-  if (faltante <= 0 || contenidoFormato <= 0) return 0;
-
-  return Math.ceil(faltante / contenidoFormato);
-}
-
-function valorStock(insumo: Insumo) {
-  const stock = Number(insumo.stock_actual ?? 0);
-  const unidadStock =
-    insumo.unidad_referencia ?? insumo.unidad_formato_compra ?? insumo.unidad_uso ?? "";
-  const unidadUso = insumo.unidad_uso ?? unidadStock;
-  const stockEnUso = convertirCantidad(stock, unidadStock, unidadUso);
-
-  return stockEnUso * Number(insumo.costo_unitario_uso ?? 0);
 }
 
 async function registrarCompra(formData: FormData) {
@@ -121,29 +66,16 @@ async function registrarCompra(formData: FormData) {
   const stockAnterior = Number(item.stock_actual ?? 0);
   const costoAnterior = Number(item.costo_unitario_uso ?? 0);
 
-  const cantidadTotalCompra = cantidadFormatos * cantidadPorFormato;
-  const cantidadCompraEnStock = convertirCantidad(
-    cantidadTotalCompra,
+  const { nuevoStock, nuevoCostoPromedio } = calculatePurchaseCost({
+    stockActual: stockAnterior,
+    costoAnterior,
+    cantidadFormatos,
+    cantidadPorFormato,
     unidadFormato,
-    unidadStock
-  );
-  const cantidadCompraEnUso = convertirCantidad(
-    cantidadTotalCompra,
-    unidadFormato,
-    unidadUso
-  );
-  const stockAnteriorEnUso = convertirCantidad(
-    stockAnterior,
     unidadStock,
-    unidadUso
-  );
-  const valorAnterior = stockAnteriorEnUso * costoAnterior;
-  const nuevoStock = stockAnterior + cantidadCompraEnStock;
-  const nuevoCostoPromedio =
-    stockAnteriorEnUso + cantidadCompraEnUso > 0
-      ? (valorAnterior + precioTotal) /
-        (stockAnteriorEnUso + cantidadCompraEnUso)
-      : precioTotal / cantidadCompraEnUso;
+    unidadUso,
+    precioTotal,
+  });
 
   const { error: updateError } = await supabase
     .from("insumos_costeo")
@@ -222,17 +154,17 @@ export default async function ComprasPage({
 
   const urgentes = sugeridos.filter(
     (item) =>
-      definirPrioridad(
+      purchasePriority(
         Number(item.stock_actual ?? 0),
         Number(item.stock_minimo ?? 0)
       ) === "Alta"
   ).length;
   const valorInventario = insumos.reduce(
-    (total, item) => total + valorStock(item),
+    (total, item) => total + stockValue(item),
     0
   );
   const compraEstimada = sugeridos.reduce((total, item) => {
-    const formatos = formatosSugeridos(item);
+    const formatos = suggestedFormats(item);
     const precioFormato = Number(item.precio_referencia ?? item.costo_compra ?? 0);
     return total + formatos * precioFormato;
   }, 0);
@@ -416,11 +348,11 @@ export default async function ComprasPage({
                               item.unidad_formato_compra ??
                               item.unidad_uso ??
                               "";
-                            const formatos = formatosSugeridos(item);
+                            const formatos = suggestedFormats(item);
                             const precioFormato = Number(
                               item.precio_referencia ?? item.costo_compra ?? 0
                             );
-                            const prioridad = definirPrioridad(
+                            const prioridad = purchasePriority(
                               Number(item.stock_actual ?? 0),
                               Number(item.stock_minimo ?? 0)
                             );

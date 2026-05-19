@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Emporio Flow
 
-## Getting Started
+Sistema operativo interno para inventario, compras, recetas, producción,
+personal y dashboard diario.
 
-First, run the development server:
+## Comandos
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm test -- --run
+npm run build
+npm run check:schema
+npm run check
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run check:schema` compara las consultas principales de la app contra el
+esquema real de Supabase configurado en `.env.local`. Úsalo antes de desplegar
+cuando cambien tablas, columnas o relaciones.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
 
-## Learn More
+Opcionalmente se puede usar `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
-To learn more about Next.js, take a look at the following resources:
+## Validación De Producción
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Antes de subir cambios:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run lint
+npm test -- --run
+npm run build
+npm run check:schema
+```
 
-## Deploy on Vercel
+## Base De Datos
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Los SQL operativos viven en `sql/`. El archivo
+`sql/2026-05-19_schema_alignment.sql` deja documentadas las columnas y tabla
+pendientes para activar historial de compras y campos extendidos del cuaderno
+semanal.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No apliques cambios en Supabase sin correr luego:
+
+```bash
+npm run check:schema
+```

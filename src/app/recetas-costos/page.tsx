@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/emporio/sidebar";
 import { createClient } from "@/lib/supabase-browser";
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 
 type Item = { id: string; nombre: string };
@@ -113,6 +112,40 @@ function money(v: number) {
     currency: "CLP",
     maximumFractionDigits: 0,
   }).format(v || 0);
+}
+
+function cellValueToText(value: ExcelJS.CellValue) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object" && "text" in value) return String(value.text);
+  if (typeof value === "object" && "result" in value) return String(value.result ?? "");
+
+  return String(value);
+}
+
+function worksheetToObjects(worksheet: ExcelJS.Worksheet): ExcelInsumoRow[] {
+  const headerRow = worksheet.getRow(1);
+  const headers = headerRow.values as Array<string | undefined>;
+  const normalizedHeaders = headers.map((value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+  );
+  const rows: ExcelInsumoRow[] = [];
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+
+    const item: ExcelInsumoRow = {};
+
+    normalizedHeaders.forEach((header, index) => {
+      if (!header) return;
+      item[header] = cellValueToText(row.getCell(index).value);
+    });
+
+    rows.push(item);
+  });
+
+  return rows;
 }
 
 function Label({
@@ -1404,10 +1437,15 @@ else {
       setImportandoExcel(true);
 
       const data = await archivoExcel.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
 
-      const hoja = workbook.Sheets[workbook.SheetNames[0]];
-      const filasRaw = XLSX.utils.sheet_to_json<ExcelInsumoRow>(hoja);
+      const hoja = workbook.worksheets[0];
+      if (!hoja) {
+        throw new Error("El archivo no tiene hojas.");
+      }
+
+      const filasRaw = worksheetToObjects(hoja);
 
       const filas = filasRaw.filter((fila) => {
         const nombre = String(fila.nombre || "").trim();
