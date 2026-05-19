@@ -19,9 +19,7 @@ type Control = {
   fecha: string;
   receta_id: string;
   elaborado: number;
-  venta: number | null;
   merma: number;
-  vendible: number | null;
 };
 
 function inicioSemana(fecha: Date) {
@@ -95,9 +93,11 @@ export default function ProduccionSemanalPage() {
     setLoading(false);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     cargar();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   function getControl(
     recetaId: string,
@@ -113,7 +113,7 @@ export default function ProduccionSemanalPage() {
   async function guardarValor(
     recetaId: string,
     fecha: string,
-    campo: "elaborado" | "venta" | "merma" | "vendible",
+    campo: "elaborado" | "merma",
     valor: number
   ) {
     const actual = getControl(recetaId, fecha);
@@ -126,20 +126,10 @@ export default function ProduccionSemanalPage() {
           ? valor
           : Number(actual?.elaborado ?? 0),
 
-      venta:
-        campo === "venta"
-          ? valor
-          : Number(actual?.venta ?? 0),
-
       merma:
         campo === "merma"
           ? valor
           : Number(actual?.merma ?? 0),
-
-      vendible:
-        campo === "vendible"
-          ? valor
-          : Number(actual?.vendible ?? 0),
     };
 
     const { error } = await supabase
@@ -181,11 +171,9 @@ export default function ProduccionSemanalPage() {
     if (!controlAnterior) return null;
 
     const elaborado = Number(controlAnterior.elaborado ?? 0);
-    const venta = Number(controlAnterior.venta ?? 0);
     const merma = Number(controlAnterior.merma ?? 0);
-    const vendible = Number(controlAnterior.vendible ?? 0);
 
-    return Math.max(elaborado - (venta + merma + vendible), 0);
+    return Math.max(elaborado - merma, 0);
   }
 
   const grouped = recetas.reduce<
@@ -220,7 +208,7 @@ export default function ProduccionSemanalPage() {
                 Cuaderno diario editable
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Completa elaborado, venta, merma y vendible. El sugerido del día siguiente usa: elaborado - (venta + merma + vendible).
+                Completa elaborado y merma. El sugerido del día siguiente usa: elaborado - merma.
               </p>
             </div>
 
@@ -348,26 +336,6 @@ export default function ProduccionSemanalPage() {
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-center text-xs font-semibold text-blue-700">
-                                VENTA
-                              </label>
-
-                              <input
-                                type="number"
-                                defaultValue={control?.venta ?? ""}
-                                onBlur={(e) =>
-                                  guardarValor(
-                                    receta.id,
-                                    dia.fecha,
-                                    "venta",
-                                    Number(e.target.value || 0)
-                                  )
-                                }
-                                className="w-full rounded-xl border border-blue-200 bg-white px-2 py-2 text-center text-base font-bold text-slate-900 shadow-sm"
-                              />
-                            </div>
-
-                            <div>
                               <label className="mb-1 block text-center text-xs font-semibold text-red-700">
                                 MERMA
                               </label>
@@ -393,25 +361,6 @@ export default function ProduccionSemanalPage() {
                               />
                             </div>
 
-                            <div>
-                              <label className="mb-1 block text-center text-xs font-semibold text-slate-700">
-                                VEND.
-                              </label>
-
-                              <input
-                                type="number"
-                                defaultValue={control?.vendible ?? ""}
-                                onBlur={(e) =>
-                                  guardarValor(
-                                    receta.id,
-                                    dia.fecha,
-                                    "vendible",
-                                    Number(e.target.value || 0)
-                                  )
-                                }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-center text-base font-bold text-slate-900 shadow-sm"
-                              />
-                            </div>
                           </div>
                         </div>
                       );

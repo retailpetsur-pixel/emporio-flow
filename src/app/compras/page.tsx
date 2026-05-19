@@ -94,9 +94,6 @@ async function registrarCompra(formData: FormData) {
   const cantidadPorFormato = Number(formData.get("cantidad_por_formato") || 0);
   const unidadFormato = String(formData.get("unidad_formato") || "");
   const precioTotal = Number(formData.get("precio_total") || 0);
-  const proveedor = String(formData.get("proveedor") || "").trim();
-  const observacion = String(formData.get("observacion") || "").trim();
-
   if (
     !insumoId ||
     cantidadFormatos <= 0 ||
@@ -162,22 +159,6 @@ async function registrarCompra(formData: FormData) {
     .eq("id", insumoId);
 
   if (updateError) throw new Error(updateError.message);
-
-  await supabase.from("compras_insumos").insert([
-    {
-      insumo_id: insumoId,
-      proveedor: proveedor || null,
-      cantidad_formatos: cantidadFormatos,
-      cantidad_por_formato: cantidadPorFormato,
-      unidad_formato: unidadFormato,
-      cantidad_total: cantidadTotalCompra,
-      precio_total: precioTotal,
-      costo_unitario_compra: precioTotal / cantidadCompraEnUso,
-      costo_promedio_anterior: costoAnterior,
-      costo_promedio_nuevo: nuevoCostoPromedio,
-      observacion: observacion || null,
-    },
-  ]);
 
   revalidatePath("/compras");
   revalidatePath("/inventario");
