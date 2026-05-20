@@ -31,8 +31,13 @@ function money(value: number) {
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value || 0);
+}
+
+function decimal(value: string | number | null | undefined) {
+  const parsed = Number(String(value ?? "0").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function factorConversion(unidadReferencia: string, unidadUso: string) {
@@ -161,8 +166,8 @@ export default function MaestrosPage() {
 
   async function crearInsumo() {
     try {
-      const precio = Number(precioReferencia);
-      const cantidad = Number(cantidadFormato);
+      const precio = decimal(precioReferencia);
+      const cantidad = decimal(cantidadFormato);
       const factor = factorConversion(unidadReferencia, unidadUso);
 
       const { error } = await supabase.from("insumos_costeo").insert([
@@ -204,7 +209,7 @@ export default function MaestrosPage() {
           nombre: productoNombre.trim(),
           categoria: categoria?.nombre ?? "",
           familia_receta_id: productoCategoriaId,
-          precio_venta_actual: Number(productoPrecio),
+          precio_venta_actual: decimal(productoPrecio),
           porciones: 1,
           activo: true,
         },
@@ -336,7 +341,8 @@ export default function MaestrosPage() {
                     <input
                       value={precioReferencia}
                       onChange={(e) => setPrecioReferencia(e.target.value)}
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="Precio"
                       className="w-full rounded-xl border px-4 py-3"
                     />
@@ -423,7 +429,8 @@ export default function MaestrosPage() {
                     <input
                       value={productoPrecio}
                       onChange={(e) => setProductoPrecio(e.target.value)}
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="Precio venta"
                       className="w-full rounded-xl border px-4 py-3"
                     />

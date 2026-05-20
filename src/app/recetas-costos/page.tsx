@@ -110,8 +110,13 @@ function money(v: number) {
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(v || 0);
+}
+
+function decimal(value: unknown) {
+  const parsed = Number(String(value ?? "0").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function cellValueToText(value: ExcelJS.CellValue) {
@@ -514,7 +519,7 @@ async function crearTipoRecetaRapido() {
 if (campo === "unidad_uso") {
   const unidadAnterior = lineas[index].unidad_uso;
   const unidadNueva = valor;
-  const cantidadActual = Number(lineas[index].cantidad_uso || 0);
+  const cantidadActual = decimal(lineas[index].cantidad_uso);
 
   if (unidadAnterior && unidadNueva && cantidadActual > 0) {
     nuevas[index].cantidad_uso = String(
@@ -527,7 +532,7 @@ if (campo === "unidad_uso") {
   }
 
 function costoLinea(linea: Linea) {
-  const cantidad = Number(linea.cantidad_uso || 0);
+  const cantidad = decimal(linea.cantidad_uso);
 
   if (linea.tipo_item === "insumo") {
     const insumo = getInsumo(linea.item_id);
@@ -697,16 +702,16 @@ for (const receta of recetasFinales) {
   const resumen = useMemo(() => {
     const base = lineas.reduce((sum, linea) => sum + costoLinea(linea), 0);
 
-    const mermaNumero = Number(merma || 0);
+    const mermaNumero = decimal(merma);
     const ajustado =
       mermaNumero > 0 && mermaNumero < 100
         ? base / (1 - mermaNumero / 100)
         : base;
 
-    const rinde = Number(porciones || 1);
+    const rinde = decimal(porciones || 1);
     const unidad = rinde > 0 ? ajustado / rinde : 0;
 
-    const venta = Number(precioVenta || 0);
+    const venta = decimal(precioVenta);
     const margen = venta - unidad;
     const margenPct = venta > 0 ? (margen / venta) * 100 : 0;
 
@@ -749,9 +754,9 @@ for (const receta of recetasFinales) {
     )
     .slice(0, 5);
 
-  const precioFormatoPreview = Number(nuevoPrecioReferencia || 0);
-  const cantidadFormatoPreview = Number(nuevoCantidadFormato || 0);
-  const stockFormatosPreview = Number(nuevoStockFormatos || 0);
+  const precioFormatoPreview = decimal(nuevoPrecioReferencia);
+  const cantidadFormatoPreview = decimal(nuevoCantidadFormato);
+  const stockFormatosPreview = decimal(nuevoStockFormatos);
   let costoUsoPreview = 0;
 
   if (precioFormatoPreview > 0 && cantidadFormatoPreview > 0) {
@@ -965,10 +970,10 @@ async function eliminarFamiliaInsumo(familia: Item) {
         throw new Error("Completa nombre y familia del insumo.");
       }
 
-      const precio = Number(nuevoPrecioReferencia || 0);
-      const cantidad = Number(nuevoCantidadFormato || 0);
-      const stockFormatos = Number(nuevoStockFormatos || 0);
-      const stockMinimo = Number(nuevoStockMinimo || 0);
+      const precio = decimal(nuevoPrecioReferencia);
+      const cantidad = decimal(nuevoCantidadFormato);
+      const stockFormatos = decimal(nuevoStockFormatos);
+      const stockMinimo = decimal(nuevoStockMinimo);
 
       if (precio <= 0 || cantidad <= 0) {
         throw new Error("Precio y cantidad deben ser mayores a 0.");
@@ -1150,7 +1155,7 @@ async function eliminarReceta(id: string) {
 }
 
       const validas = lineas.filter(
-        (x) => x.item_id && Number(x.cantidad_uso) > 0
+        (x) => x.item_id && decimal(x.cantidad_uso) > 0
       );
 
       if (validas.length === 0) {
@@ -1164,16 +1169,16 @@ async function eliminarReceta(id: string) {
         categoria: tipo.nombre,
         tipo_receta_id: tipoId,
         familia_receta_id: familiaId,
-        porciones: Number(porciones || 1),
-        merma_porcentaje: Number(merma || 0),
-        tiempo_minutos: Number(tiempo || 0),
-        precio_venta_actual: Number(precioVenta || 0),
+        porciones: decimal(porciones || 1),
+        merma_porcentaje: decimal(merma),
+        tiempo_minutos: decimal(tiempo),
+        precio_venta_actual: decimal(precioVenta),
         costo_total_calculado: resumen.ajustado,
         costo_unitario_calculado: resumen.unidad,
         margen_actual_porcentaje:
-          Number(precioVenta || 0) > 0
-          ? ((Number(precioVenta || 0) - resumen.unidad) /
-            Number(precioVenta || 0)) *
+          decimal(precioVenta) > 0
+          ? ((decimal(precioVenta) - resumen.unidad) /
+            decimal(precioVenta)) *
             100
             : 0,
         precio_sugerido: resumen.unidad > 0 ? resumen.unidad / 0.3 : 0,
@@ -1222,7 +1227,7 @@ if (recetaId) {
         tipo_item: x.tipo_item,
         insumo_id: x.tipo_item === "insumo" ? x.item_id : null,
         subreceta_id: x.tipo_item === "subreceta" ? x.item_id : null,
-        cantidad_uso: Number(x.cantidad_uso),
+        cantidad_uso: decimal(x.cantidad_uso),
         unidad_uso: x.unidad_uso,
       }));
 
@@ -1281,7 +1286,7 @@ if (recetaId) {
       setMensaje("");
 
       const receta = recetas.find((r) => r.id === produccionRecetaId);
-      const cantidad = Number(cantidadProducida || 0);
+      const cantidad = decimal(cantidadProducida);
 
       if (!receta || cantidad <= 0) {
         alert("Selecciona receta y cantidad producida.");
@@ -1475,14 +1480,14 @@ if (!familiaEncontrada) {
   throw new Error(`No existe la familia: ${familiaTexto}`);
 }
 
-        const precio = Number(fila.precio_formato || fila.precio_referencia || 0);
-        const cantidad = Number(fila.cantidad_formato || 1);
+        const precio = decimal(fila.precio_formato || fila.precio_referencia || 0);
+        const cantidad = decimal(fila.cantidad_formato || 1);
         const unidadFormato = String(fila.unidad_formato_compra || "kg");
         const unidadUso = String(fila.unidad_uso || "grs");
         const factor = factorConversion(unidadFormato, unidadUso);
         const costoUnitarioUso = precio / (cantidad * factor);
-        const stockActual = Number(fila.stock_actual || 0);
-        const stockMinimo = Number(fila.stock_minimo || 0);
+        const stockActual = decimal(fila.stock_actual || 0);
+        const stockMinimo = decimal(fila.stock_minimo || 0);
 
         return {
           nombre: String(fila.nombre || "").trim(),
@@ -2147,7 +2152,8 @@ onClick={async () => {
                         <input
                           value={porciones}
                           onChange={(e) => setPorciones(e.target.value)}
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                         />
                       </Label>
@@ -2170,7 +2176,8 @@ onClick={async () => {
                         <input
                           value={precioVenta}
                           onChange={(e) => setPrecioVenta(e.target.value)}
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                         />
                       </Label>
@@ -2179,7 +2186,8 @@ onClick={async () => {
                         <input
                           value={merma}
                           onChange={(e) => setMerma(e.target.value)}
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                         />
                       </Label>
@@ -2188,7 +2196,8 @@ onClick={async () => {
                         <input
                           value={tiempo}
                           onChange={(e) => setTiempo(e.target.value)}
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                         />
                       </Label>
@@ -2313,8 +2322,8 @@ onClick={async () => {
                                     e.target.value
                                   )
                                 }
-                                type="number"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-right text-sm"
                               />
                             </td>
@@ -2688,7 +2697,8 @@ onClick={async () => {
                       <input
                         value={nuevoPrecioReferencia}
                         onChange={(e) => setNuevoPrecioReferencia(e.target.value)}
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ej: 3000"
                         className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                       />
@@ -2700,8 +2710,8 @@ onClick={async () => {
                         onChange={(e) =>
                           setNuevoCantidadFormato(e.target.value)
                         }
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ej: 180"
                         className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                       />
@@ -2753,8 +2763,8 @@ onClick={async () => {
                       <input
                         value={nuevoStockFormatos}
                         onChange={(e) => setNuevoStockFormatos(e.target.value)}
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ej: 3"
                         className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                       />
@@ -2766,8 +2776,8 @@ onClick={async () => {
                       <input
                         value={nuevoStockMinimo}
                         onChange={(e) => setNuevoStockMinimo(e.target.value)}
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ej: 180"
                         className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
                       />
@@ -3166,7 +3176,8 @@ onClick={async () => {
                   <input
                     value={cantidadProducida}
                     onChange={(e) => setCantidadProducida(e.target.value)}
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="Cantidad producida"
                     className="w-full rounded-xl border px-3 py-3 text-sm"
                   />
