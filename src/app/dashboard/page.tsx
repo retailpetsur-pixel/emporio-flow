@@ -390,6 +390,7 @@ export default async function DashboardPage() {
       : "trabajador";
   const [
     { data: productos, error: productosError },
+    { data: insumosCosteo, error: insumosCosteoError },
     { data: produccion, error: produccionError },
     { data: cierres, error: cierresError },
     { data: trabajadores, error: trabajadoresError },
@@ -397,6 +398,11 @@ export default async function DashboardPage() {
     { data: permisos, error: permisosError },
   ] = await Promise.all([
     supabase.from("productos").select("*").order("created_at", { ascending: true }),
+    supabase
+      .from("insumos_costeo")
+      .select("id,nombre,stock_actual,stock_minimo")
+      .eq("activo", true)
+      .order("nombre", { ascending: true }),
     supabase
       .from("produccion")
       .select("*")
@@ -420,16 +426,20 @@ export default async function DashboardPage() {
   ]);
 
   const productosList = productos ?? [];
+  const insumosCosteoList = insumosCosteo ?? [];
   const produccionList = produccion ?? [];
   const cierresList = cierres ?? [];
   const trabajadoresList = trabajadores ?? [];
   const turnosList = turnos ?? [];
   const permisosList = permisos ?? [];
 
+  const insumosCompraSugerida = insumosCosteoList.filter(
+    (item) =>
+      Number(item.stock_minimo ?? 0) > 0 &&
+      Number(item.stock_actual ?? 0) <= Number(item.stock_minimo ?? 0)
+  );
 
-  const productosCriticos = productosList.filter(
-    (item) => item.estado === "critical"
-  ).length;
+  const productosCriticos = insumosCompraSugerida.length;
 
   const productosSobreStock = productosList.filter(
     (item) =>
@@ -437,9 +447,7 @@ export default async function DashboardPage() {
       Number(item.stock_actual) > Number(item.stock_maximo)
   ).length;
 
-  const comprasSugeridas = productosList.filter(
-    (item) => Number(item.stock_actual) <= Number(item.stock_minimo)
-  ).length;
+  const comprasSugeridas = insumosCompraSugerida.length;
 
   const produccionPendiente = produccionList.filter(
     (item) => item.estado === "Pendiente" || item.estado === "En proceso"
@@ -485,6 +493,7 @@ export default async function DashboardPage() {
 
   const errores = [
     productosError?.message,
+    insumosCosteoError?.message,
     produccionError?.message,
     cierresError?.message,
     trabajadoresError?.message,
@@ -494,8 +503,7 @@ export default async function DashboardPage() {
 
   const alertas: { text: string; tone: "danger" | "warning" | "neutral" }[] = [];
 
-  productosList
-    .filter((item) => item.estado === "critical")
+  insumosCompraSugerida
     .slice(0, 2)
     .forEach((item) => {
       alertas.push({
@@ -550,13 +558,13 @@ export default async function DashboardPage() {
     tone?: "danger" | "warning" | "neutral";
   }> = [];
 
-  if (productosCriticos > 0 || comprasSugeridas > 0) {
+  if (comprasSugeridas > 0) {
     accionesOperativas.push({
       title: "Revisar reposición",
       description: `${comprasSugeridas} insumo(s) requieren atención de compra.`,
       href: "/compras",
       action: "Abrir compras",
-      tone: productosCriticos > 0 ? "danger" : "warning",
+      tone: "danger",
     });
   }
 
@@ -604,7 +612,7 @@ export default async function DashboardPage() {
         title: "Inventario",
         description: "Control de stock, mínimos, máximos y ajustes rápidos.",
         href: "/inventario",
-        metric: `${productosList.length} ítems`,
+        metric: `${insumosCosteoList.length} ítems`,
       },
       {
         title: "Compras",
@@ -750,7 +758,7 @@ export default async function DashboardPage() {
         title: "Inventario",
         description: "Stock, valorización y mínimos de insumos.",
         href: "/inventario",
-        metric: `${productosList.length} ítems`,
+        metric: `${insumosCosteoList.length} ítems`,
       },
       {
         title: "Compras",
@@ -865,7 +873,7 @@ export default async function DashboardPage() {
                   <ModuleGroupCard
                     title="Inventario, recetas y costos"
                     description="Stock valorizado, insumos maestros, recetas, márgenes y costos de producción."
-                    metric={`${productosList.length} ítems`}
+                    metric={`${insumosCosteoList.length} ítems`}
                     icon="box"
                     tone="emerald"
                     links={gestionCostosLinks.map((module) => ({
