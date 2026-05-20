@@ -11,6 +11,44 @@ export type PurchaseCostInput = {
   precioTotal: number;
 };
 
+export type PurchasePriceInput = {
+  cantidadFormatos: number;
+  precioTotal: number;
+  precioUnitarioFormato: number;
+};
+
+export function resolvePurchasePrice(input: PurchasePriceInput) {
+  if (input.cantidadFormatos <= 0) {
+    return {
+      precioTotal: 0,
+      precioFormato: 0,
+      modoPrecio: "sin_precio" as const,
+    };
+  }
+
+  if (input.precioTotal > 0) {
+    return {
+      precioTotal: input.precioTotal,
+      precioFormato: input.precioTotal / input.cantidadFormatos,
+      modoPrecio: "total" as const,
+    };
+  }
+
+  if (input.precioUnitarioFormato > 0) {
+    return {
+      precioTotal: input.precioUnitarioFormato * input.cantidadFormatos,
+      precioFormato: input.precioUnitarioFormato,
+      modoPrecio: "unitario" as const,
+    };
+  }
+
+  return {
+    precioTotal: 0,
+    precioFormato: 0,
+    modoPrecio: "sin_precio" as const,
+  };
+}
+
 export function calculatePurchaseCost(input: PurchaseCostInput) {
   const cantidadTotalCompra = input.cantidadFormatos * input.cantidadPorFormato;
   const cantidadCompraEnStock = convertQuantity(

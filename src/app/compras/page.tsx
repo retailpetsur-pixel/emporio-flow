@@ -1,7 +1,7 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { purchasePriority, stockValue, suggestedFormats } from "@/lib/domain/inventory";
-import { calculatePurchaseCost } from "@/lib/domain/purchasing";
+import { calculatePurchaseCost, resolvePurchasePrice } from "@/lib/domain/purchasing";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -38,7 +38,14 @@ async function registrarCompra(formData: FormData) {
   const cantidadFormatos = Number(formData.get("cantidad_formatos") || 0);
   const cantidadPorFormato = Number(formData.get("cantidad_por_formato") || 0);
   const unidadFormato = String(formData.get("unidad_formato") || "");
-  const precioTotal = Number(formData.get("precio_total") || 0);
+  const precioTotalIngresado = Number(formData.get("precio_total") || 0);
+  const precioUnitarioFormato = Number(formData.get("precio_unitario_formato") || 0);
+  const { precioTotal, precioFormato, modoPrecio } = resolvePurchasePrice({
+    cantidadFormatos,
+    precioTotal: precioTotalIngresado,
+    precioUnitarioFormato,
+  });
+
   if (
     !insumoId ||
     cantidadFormatos <= 0 ||
@@ -46,7 +53,9 @@ async function registrarCompra(formData: FormData) {
     !unidadFormato ||
     precioTotal <= 0
   ) {
-    throw new Error("Completa insumo, cantidad, formato, unidad y precio total.");
+    throw new Error(
+      "Completa insumo, cantidad, formato, unidad y al menos un precio: total o unitario."
+    );
   }
 
   const { data: insumo, error: readError } = await supabase
@@ -82,8 +91,8 @@ async function registrarCompra(formData: FormData) {
     .update({
       stock_actual: nuevoStock,
       costo_unitario_uso: nuevoCostoPromedio,
-      precio_referencia: precioTotal / cantidadFormatos,
-      costo_compra: precioTotal / cantidadFormatos,
+      precio_referencia: precioFormato,
+      costo_compra: precioFormato,
       cantidad_formato_compra: cantidadPorFormato,
       unidad_formato_compra: unidadFormato,
       unidad_referencia: unidadStock,
@@ -99,7 +108,9 @@ async function registrarCompra(formData: FormData) {
     `/compras?estado=ok&mensaje=${encodeURIComponent(
       `Compra de ${item.nombre} registrada. Stock actualizado a ${nuevoStock.toLocaleString(
         "es-CL"
-      )} ${unidadStock}.`
+      )} ${unidadStock}. Precio tomado por ${
+        modoPrecio === "unitario" ? "valor unitario" : "total de compra"
+      }.`
     )}`
   );
 }
@@ -206,7 +217,7 @@ export default async function ComprasPage({
                   Registrar compra real
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Usa el formato comprado hoy. El sistema recalcula el costo promedio ponderado.
+                  Usa el formato comprado hoy. Puedes ingresar precio total o precio unitario por formato.
                 </p>
 
                 <form action={registrarCompra} className="mt-5 grid gap-4">
@@ -271,6 +282,9 @@ export default async function ComprasPage({
                       </select>
                     </label>
 
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <label className="grid gap-2 text-sm font-semibold text-slate-700">
                       Precio total pagado
                       <input
@@ -278,12 +292,27 @@ export default async function ComprasPage({
                         type="number"
                         step="1"
                         min="0"
-                        required
                         placeholder="Ej: 7600"
                         className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
                       />
                     </label>
+
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Precio unitario/formato
+                      <input
+                        name="precio_unitario_formato"
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="Ej: 3800"
+                        className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
+                      />
+                    </label>
                   </div>
+
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
+                    Si completas ambos precios, se usará el total pagado. Para boletas con varios insumos, usa el precio unitario de la línea.
+                  </p>
 
                   <label className="grid gap-2 text-sm font-semibold text-slate-700">
                     Proveedor

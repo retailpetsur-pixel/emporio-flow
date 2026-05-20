@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { purchasePriority, stockValue, suggestedFormats } from "./inventory";
-import { calculatePurchaseCost } from "./purchasing";
+import { calculatePurchaseCost, resolvePurchasePrice } from "./purchasing";
 import { nextDaySuggestedProduction } from "./production";
 import { convertQuantity, normalizeUnit } from "./units";
 
@@ -55,6 +55,34 @@ describe("inventory calculations", () => {
 });
 
 describe("purchase costing", () => {
+  it("resolves purchase price from total amount", () => {
+    expect(
+      resolvePurchasePrice({
+        cantidadFormatos: 2,
+        precioTotal: 7600,
+        precioUnitarioFormato: 0,
+      })
+    ).toEqual({
+      precioTotal: 7600,
+      precioFormato: 3800,
+      modoPrecio: "total",
+    });
+  });
+
+  it("resolves purchase price from unit format amount", () => {
+    expect(
+      resolvePurchasePrice({
+        cantidadFormatos: 3,
+        precioTotal: 0,
+        precioUnitarioFormato: 1250,
+      })
+    ).toEqual({
+      precioTotal: 3750,
+      precioFormato: 1250,
+      modoPrecio: "unitario",
+    });
+  });
+
   it("calculates weighted average cost and stock after purchase", () => {
     const result = calculatePurchaseCost({
       stockActual: 1,
