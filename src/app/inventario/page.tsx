@@ -39,11 +39,31 @@ type Familia = {
 };
 
 function money(v: number) {
+  const decimals = Number.isInteger(v) ? 0 : 2;
+
+  return `$${new Intl.NumberFormat("es-CL", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: 2,
+  }).format(v || 0)}`;
+}
+
+function unitMoney(v: number) {
   return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(v || 0);
+}
+
+function quantity(v: number) {
+  return new Intl.NumberFormat("es-CL", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(v || 0);
+}
+
+function decimal(value: FormDataEntryValue | null) {
+  const parsed = Number(String(value ?? "0").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function normalizarUnidad(unidad: string) {
@@ -197,9 +217,9 @@ async function ajustarStockProducto(formData: FormData) {
     "";
 
   if (accion === "fijar") {
-    nuevoStock = Number(formData.get("stock_real") || 0);
+    nuevoStock = decimal(formData.get("stock_real"));
   } else {
-    nuevoStock = stockActual + Number(formData.get("delta") || 0);
+    nuevoStock = stockActual + decimal(formData.get("delta"));
   }
 
   nuevoStock = Math.max(nuevoStock, 0);
@@ -582,9 +602,9 @@ export default async function InventarioPage({
                   Error al cargar insumos valorizados: {insumosError.message}
                 </div>
               ) : (
-                <div className="mt-6 overflow-auto rounded-xl border border-slate-200">
+                <div className="mt-6 max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
                   <table className="min-w-[900px] w-full text-sm">
-                    <thead className="bg-slate-100 text-left text-xs font-bold uppercase text-slate-500">
+                    <thead className="sticky top-0 z-20 bg-slate-100 text-left text-xs font-bold uppercase text-slate-500 shadow-sm">
                       <tr>
                         <th className="px-4 py-3">Insumo</th>
                         <th className="px-4 py-3 text-right">Stock físico</th>
@@ -628,13 +648,13 @@ export default async function InventarioPage({
                                 </p>
                               </td>
                               <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                                {stock.toLocaleString("es-CL")} {unidadStock}
+                                {quantity(stock)} {unidadStock}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                {minimo.toLocaleString("es-CL")} {unidadStock}
+                                {quantity(minimo)} {unidadStock}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                {money(Number(item.costo_unitario_uso ?? 0))} /{" "}
+                                ${unitMoney(Number(item.costo_unitario_uso ?? 0))} /{" "}
                                 {item.unidad_uso ?? unidadStock}
                               </td>
                               <td className="px-4 py-3 text-right font-bold text-slate-900">
@@ -812,9 +832,9 @@ export default async function InventarioPage({
                   formatos de compra se registran en Compras.
                 </div>
 
-                <div className="mt-6 overflow-x-auto">
+                <div className="mt-6 max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
                   <table className="min-w-[1120px] w-full border-separate border-spacing-y-2">
-                    <thead>
+                    <thead className="sticky top-0 z-20 bg-white shadow-sm">
                       <tr className="text-left text-sm text-slate-500">
                         <th className="px-4 py-2">Nombre</th>
                         <th className="px-4 py-2">Tipo</th>
@@ -855,10 +875,10 @@ export default async function InventarioPage({
                           <td className="px-4 py-4">{item.tipo}</td>
                           <td className="px-4 py-4">{item.categoria}</td>
                           <td className="px-4 py-4 text-right font-semibold text-slate-900">
-                            {item.stock_actual} {item.unidad ?? ""}
+                            {quantity(item.stock_actual)} {item.unidad ?? ""}
                           </td>
-                          <td className="px-4 py-4">{item.stock_minimo}</td>
-                          <td className="px-4 py-4">{item.stock_maximo}</td>
+                          <td className="px-4 py-4">{quantity(item.stock_minimo)}</td>
+                          <td className="px-4 py-4">{quantity(item.stock_maximo)}</td>
                           <td className="px-4 py-4">{item.unidad ?? "-"}</td>
                           <td className="px-4 py-4">
                             <StatusBadge status={item.estado} />
@@ -877,9 +897,8 @@ export default async function InventarioPage({
                                 <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white focus-within:border-emerald-400">
                                   <input
                                     name="stock_real"
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
+                                    type="text"
+                                    inputMode="decimal"
                                     placeholder="Stock real"
                                     className="w-28 border-0 bg-white px-3 py-2 text-right text-sm text-slate-900 outline-none"
                                   />
