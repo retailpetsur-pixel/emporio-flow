@@ -31,15 +31,20 @@ function money(v: number) {
   }).format(v || 0);
 }
 
+function decimal(value: FormDataEntryValue | null) {
+  const parsed = Number(String(value ?? "0").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function registrarCompra(formData: FormData) {
   "use server";
 
   const insumoId = String(formData.get("insumo_id") || "");
-  const cantidadFormatos = Number(formData.get("cantidad_formatos") || 0);
-  const cantidadPorFormato = Number(formData.get("cantidad_por_formato") || 0);
+  const cantidadFormatos = decimal(formData.get("cantidad_formatos"));
+  const cantidadPorFormato = decimal(formData.get("cantidad_por_formato"));
   const unidadFormato = String(formData.get("unidad_formato") || "");
-  const precioTotalIngresado = Number(formData.get("precio_total") || 0);
-  const precioUnitarioFormato = Number(formData.get("precio_unitario_formato") || 0);
+  const precioTotalIngresado = decimal(formData.get("precio_total"));
+  const precioUnitarioFormato = decimal(formData.get("precio_unitario_formato"));
   const { precioTotal, precioFormato, modoPrecio } = resolvePurchasePrice({
     cantidadFormatos,
     precioTotal: precioTotalIngresado,
@@ -107,7 +112,8 @@ async function registrarCompra(formData: FormData) {
   redirect(
     `/compras?estado=ok&mensaje=${encodeURIComponent(
       `Compra de ${item.nombre} registrada. Stock actualizado a ${nuevoStock.toLocaleString(
-        "es-CL"
+        "es-CL",
+        { maximumFractionDigits: 2 }
       )} ${unidadStock}. Precio tomado por ${
         modoPrecio === "unitario" ? "valor unitario" : "total de compra"
       }.`
@@ -242,9 +248,8 @@ export default async function ComprasPage({
                       Cantidad de formatos
                       <input
                         name="cantidad_formatos"
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         required
                         placeholder="Ej: 2"
                         className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
@@ -255,11 +260,10 @@ export default async function ComprasPage({
                       Contenido por formato
                       <input
                         name="cantidad_por_formato"
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         required
-                        placeholder="Ej: 250"
+                        placeholder="Ej: 2,5"
                         className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
                       />
                     </label>
@@ -289,9 +293,8 @@ export default async function ComprasPage({
                       Precio total pagado
                       <input
                         name="precio_total"
-                        type="number"
-                        step="1"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ej: 7600"
                         className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
                       />
@@ -301,9 +304,8 @@ export default async function ComprasPage({
                       Precio unitario/formato
                       <input
                         name="precio_unitario_formato"
-                        type="number"
-                        step="1"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Ej: 3800"
                         className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal"
                       />
