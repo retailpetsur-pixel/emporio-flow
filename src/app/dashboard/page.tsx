@@ -1,287 +1,11 @@
+import DashboardCardGrid, {
+  type DashboardCardItem,
+} from "@/components/emporio/dashboard-card-grid";
 import { supabase } from "@/lib/supabase";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
 
 type Role = "admin" | "gerencia" | "supervisor" | "trabajador" | "compras";
-type IconName =
-  | "box"
-  | "cart"
-  | "chart"
-  | "check"
-  | "gear"
-  | "list"
-  | "production"
-  | "users";
-type ModuleTone = "emerald" | "amber" | "sky" | "violet" | "slate";
-
-function DashboardIcon({
-  name,
-  className = "",
-}: {
-  name: IconName;
-  className?: string;
-}) {
-  const common = {
-    className: `h-5 w-5 ${className}`,
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 2,
-    viewBox: "0 0 24 24",
-    "aria-hidden": true,
-  };
-
-  const paths: Record<IconName, ReactNode> = {
-    box: (
-      <>
-        <path d="M21 8 12 3 3 8l9 5 9-5Z" />
-        <path d="M3 8v8l9 5 9-5V8" />
-        <path d="M12 13v8" />
-      </>
-    ),
-    cart: (
-      <>
-        <path d="M5 6h16l-2 8H7L5 3H3" />
-        <path d="M8 20h.01" />
-        <path d="M17 20h.01" />
-      </>
-    ),
-    chart: (
-      <>
-        <path d="M4 19V5" />
-        <path d="M4 19h16" />
-        <path d="M8 15l3-4 3 2 4-6" />
-      </>
-    ),
-    check: (
-      <>
-        <path d="M20 6 9 17l-5-5" />
-        <path d="M4 20h16" />
-      </>
-    ),
-    gear: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.9-1.1L14.3 3h-4.6l-.4 2.9A7 7 0 0 0 7.4 7L5 6 3 9.4l2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.1l-2 1.5L5 18l2.4-1a7 7 0 0 0 1.9 1.1l.4 2.9h4.6l.4-2.9a7 7 0 0 0 1.9-1.1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1.1Z" />
-      </>
-    ),
-    list: (
-      <>
-        <path d="M8 6h13" />
-        <path d="M8 12h13" />
-        <path d="M8 18h13" />
-        <path d="M3 6h.01" />
-        <path d="M3 12h.01" />
-        <path d="M3 18h.01" />
-      </>
-    ),
-    production: (
-      <>
-        <path d="M4 18V8l8-4 8 4v10" />
-        <path d="M8 18v-6h8v6" />
-        <path d="M10 9h4" />
-      </>
-    ),
-    users: (
-      <>
-        <circle cx="9" cy="8" r="3" />
-        <path d="M3 20a6 6 0 0 1 12 0" />
-        <path d="M16 11a3 3 0 0 0 0-6" />
-        <path d="M18 20a5 5 0 0 0-3-4.5" />
-      </>
-    ),
-  };
-
-  return <svg {...common}>{paths[name]}</svg>;
-}
-
-function moduleIconForHref(href: string): IconName {
-  const icons: Record<string, IconName> = {
-    "/inventario": "box",
-    "/recetas-costos": "chart",
-    "/compras": "cart",
-    "/produccion": "production",
-    "/cierre-turno": "check",
-    "/usuarios": "users",
-    "/configuracion": "gear",
-  };
-
-  return icons[href] ?? "list";
-}
-
-function moduleToneForHref(href: string): ModuleTone {
-  const tones: Record<string, ModuleTone> = {
-    "/inventario": "emerald",
-    "/recetas-costos": "sky",
-    "/compras": "amber",
-    "/produccion": "emerald",
-    "/cierre-turno": "sky",
-    "/usuarios": "violet",
-    "/configuracion": "slate",
-  };
-
-  return tones[href] ?? "slate";
-}
-
-const moduleToneStyles: Record<
-  ModuleTone,
-  {
-    bar: string;
-    icon: string;
-    primaryAction: string;
-    secondaryAction: string;
-  }
-> = {
-  emerald: {
-    bar: "bg-emerald-500",
-    icon: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
-    primaryAction:
-      "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
-    secondaryAction:
-      "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800",
-  },
-  amber: {
-    bar: "bg-amber-400",
-    icon: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
-    primaryAction:
-      "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
-    secondaryAction:
-      "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800",
-  },
-  sky: {
-    bar: "bg-sky-400",
-    icon: "bg-sky-50 text-sky-700 ring-1 ring-sky-100",
-    primaryAction: "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100",
-    secondaryAction:
-      "border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800",
-  },
-  violet: {
-    bar: "bg-violet-400",
-    icon: "bg-violet-50 text-violet-700 ring-1 ring-violet-100",
-    primaryAction:
-      "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100",
-    secondaryAction:
-      "border-slate-200 bg-white text-slate-700 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800",
-  },
-  slate: {
-    bar: "bg-slate-400",
-    icon: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
-    primaryAction:
-      "border-slate-300 bg-slate-950 text-white hover:bg-slate-800",
-    secondaryAction:
-      "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-  },
-};
-
-function ModuleCard({
-  title,
-  description,
-  href,
-  metric,
-  icon,
-  tone,
-}: {
-  title: string;
-  description: string;
-  href: string;
-  metric?: string;
-  icon: IconName;
-  tone: ModuleTone;
-}) {
-  const styles = moduleToneStyles[tone];
-
-  return (
-    <a
-      href={href}
-      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-    >
-      <span className={`absolute inset-x-0 top-0 h-1 ${styles.bar}`} />
-      <div className="flex min-h-48 flex-col justify-between gap-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-950">{title}</h3>
-            {metric ? (
-              <p className="mt-2 text-2xl font-bold text-slate-950">{metric}</p>
-            ) : null}
-          </div>
-          <span
-            className={`inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl transition ${styles.icon}`}
-          >
-            <DashboardIcon name={icon} className="h-10 w-10" />
-          </span>
-        </div>
-
-        <p className="text-sm leading-6 text-slate-600">{description}</p>
-
-        <span
-          className={`inline-flex w-fit rounded-xl border px-4 py-2 text-sm font-bold transition ${styles.primaryAction}`}
-        >
-          Abrir módulo
-        </span>
-      </div>
-    </a>
-  );
-}
-
-function ModuleGroupCard({
-  title,
-  description,
-  metric,
-  icon,
-  tone,
-  links,
-}: {
-  title: string;
-  description: string;
-  metric?: string;
-  icon: IconName;
-  tone: ModuleTone;
-  links: Array<{ label: string; href: string; icon: IconName }>;
-}) {
-  const styles = moduleToneStyles[tone];
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <span className={`absolute inset-x-0 top-0 h-1 ${styles.bar}`} />
-      <div className="flex min-h-56 flex-col justify-between gap-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-950">{title}</h3>
-            {metric ? (
-              <p className="mt-2 text-2xl font-bold text-slate-950">{metric}</p>
-            ) : null}
-          </div>
-          <span
-            className={`inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl ${styles.icon}`}
-          >
-            <DashboardIcon name={icon} className="h-10 w-10" />
-          </span>
-        </div>
-
-        <p className="max-w-xl text-sm leading-6 text-slate-600">
-          {description}
-        </p>
-
-        <div className="flex flex-wrap gap-4">
-          {links.map((link, index) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${
-                index === 0 ? styles.primaryAction : styles.secondaryAction
-              }`}
-            >
-              <DashboardIcon name={link.icon} className="h-4 w-4" />
-              {link.label}
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function AlertItem({
   text,
@@ -438,8 +162,6 @@ export default async function DashboardPage() {
       Number(item.stock_minimo ?? 0) > 0 &&
       Number(item.stock_actual ?? 0) <= Number(item.stock_minimo ?? 0)
   );
-
-  const productosCriticos = insumosCompraSugerida.length;
 
   const productosSobreStock = productosList.filter(
     (item) =>
@@ -598,200 +320,78 @@ export default async function DashboardPage() {
     });
   }
 
-  const moduleCardsByRole: Record<
-    Role,
-    Array<{
-      title: string;
-      description: string;
-      href: string;
-      metric?: string;
-    }>
-  > = {
-    admin: [
-      {
-        title: "Inventario",
-        description: "Control de stock, mínimos, máximos y ajustes rápidos.",
-        href: "/inventario",
-        metric: `${insumosCosteoList.length} ítems`,
-      },
-      {
-        title: "Compras",
-        description: "Reposición automática según faltantes reales.",
-        href: "/compras",
-        metric: `${comprasSugeridas} sugeridas`,
-      },
-      {
-        title: "Producción",
-        description: "Planificación y ejecución diaria de producción.",
-        href: "/produccion",
-        metric: `${produccionList.length} registros`,
-      },
-      {
-        title: "Cierre de turno",
-        description: "Saldo vendible, merma y observaciones del turno.",
-        href: "/cierre-turno",
-        metric: `${cierresList.length} cierres`,
-      },
-      {
-        title: "Personal",
-        description: "Trabajadores, sectores, turnos, asistencia y permisos.",
-        href: "/usuarios",
-        metric: `${trabajadoresActivos} activos`,
-      },
-      {
-        title: "Recetas y Costeo",
-        description: "Costos unitarios, márgenes y precios sugeridos.",
-        href: "/recetas-costos",
-        metric: "Activo",
-      },
-      {
-        title: "Configuración",
-        description: "Usuarios, perfiles y permisos del ERP.",
-        href: "/configuracion",
-        metric: "Admin",
-      },
-    ],
-    gerencia: [
-      {
-        title: "Inventario",
-        description: "Stock crítico y quiebres potenciales.",
-        href: "/inventario",
-        metric: `${productosCriticos} críticos`,
-      },
-      {
-        title: "Compras",
-        description: "Seguimiento de compras y faltantes.",
-        href: "/compras",
-        metric: `${comprasSugeridas} sugeridas`,
-      },
-      {
-        title: "Producción",
-        description: "Producción diaria y ajustes operativos.",
-        href: "/produccion",
-        metric: `${produccionPendiente} pendientes`,
-      },
-      {
-        title: "Cierre de turno",
-        description: "Revisión de saldo vendible y merma.",
-        href: "/cierre-turno",
-        metric: `Merma ${totalMermaCierre}`,
-      },
-      {
-        title: "Personal",
-        description: "Permisos, turnos y cobertura del equipo.",
-        href: "/usuarios",
-        metric: `${permisosPendientes} permisos`,
-      },
-      {
-        title: "Recetas y Costeo",
-        description: "Márgenes, costos y precios sugeridos.",
-        href: "/recetas-costos",
-        metric: "Estratégico",
-      },
-      {
-        title: "Configuración",
-        description: "Usuarios, perfiles y permisos del ERP.",
-        href: "/configuracion",
-        metric: "Gerencia",
-      },
-    ],
-    supervisor: [
-      {
-        title: "Producción",
-        description: "Estado del día y seguimiento de ejecución.",
-        href: "/produccion",
-        metric: `${produccionPendiente} pendientes`,
-      },
-      {
-        title: "Inventario",
-        description: "Insumos críticos y sobre stock.",
-        href: "/inventario",
-        metric: `${productosCriticos} críticos`,
-      },
-      {
-        title: "Compras",
-        description: "Faltantes operativos del día.",
-        href: "/compras",
-        metric: `${comprasSugeridas} sugeridas`,
-      },
-      {
-        title: "Cierre de turno",
-        description: "Registro y revisión de saldo.",
-        href: "/cierre-turno",
-        metric: `${totalSaldoCierre} saldo`,
-      },
-      {
-        title: "Recetas y Costeo",
-        description: "Consulta costos y referencias de producción.",
-        href: "/recetas-costos",
-        metric: "Consulta",
-      },
-    ],
-    trabajador: [
-      {
-        title: "Mis turnos",
-        description: "Consulta tus turnos y sector asignado.",
-        href: "/usuarios",
-        metric: `${turnosHoy} hoy`,
-      },
-      {
-        title: "Producción proyectada",
-        description: "Revisión rápida de la producción del día.",
-        href: "/produccion",
-        metric: `${produccionList.length} registros`,
-      },
-      {
-        title: "Mis permisos",
-        description: "Estado de solicitudes de permiso.",
-        href: "/usuarios",
-        metric: `${permisosPendientes} pendientes`,
-      },
-      {
-        title: "Asistencia",
-        description: "Consulta atrasos, faltas y registros.",
-        href: "/usuarios",
-        metric: "Mi historial",
-      },
-    ],
-    compras: [
-      {
-        title: "Inventario",
-        description: "Stock, valorización y mínimos de insumos.",
-        href: "/inventario",
-        metric: `${insumosCosteoList.length} ítems`,
-      },
-      {
-        title: "Compras",
-        description: "Registro de compras y actualización de costos.",
-        href: "/compras",
-        metric: `${comprasSugeridas} sugeridas`,
-      },
-      {
-        title: "Producción",
-        description: "Consulta operativa de producción.",
-        href: "/produccion",
-        metric: `${produccionList.length} registros`,
-      },
-    ],
-  };
-
-  const visibleModules = moduleCardsByRole[currentRole];
-  const moduleByHref = new Map(
-    visibleModules.map((module) => [module.href, module])
-  );
-  const gestionCostosLinks = ["/inventario", "/recetas-costos"]
-    .map((href) => moduleByHref.get(href))
-    .filter(Boolean) as typeof visibleModules;
-  const operacionLinks = ["/produccion", "/cierre-turno"]
-    .map((href) => moduleByHref.get(href))
-    .filter(Boolean) as typeof visibleModules;
-  const groupedHrefs = [
-    ...gestionCostosLinks.map((module) => module.href),
-    ...operacionLinks.map((module) => module.href),
+  const dashboardModules: DashboardCardItem[] = [
+    {
+      id: "recetas-costos",
+      title: "Recetas y costos",
+      description: "Costos unitarios, márgenes, precios sugeridos y subrecetas.",
+      href: "/recetas-costos",
+      metric: "Costeo",
+      action: "Abrir recetas",
+      icon: "📈",
+      tone: "sky",
+    },
+    {
+      id: "inventario",
+      title: "Inventario",
+      description: "Stock valorizado, mínimos, conteo físico y alertas.",
+      href: "/inventario",
+      metric: `${insumosCosteoList.length}`,
+      action: "Abrir inventario",
+      icon: "📦",
+      tone: "emerald",
+    },
+    {
+      id: "produccion",
+      title: "Producción",
+      description: "Planificación semanal, producción diaria, vendibles y mermas.",
+      href: "/produccion",
+      metric: `${produccionList.length}`,
+      action: "Abrir producción",
+      icon: "🏭",
+      tone: "cyan",
+    },
+    {
+      id: "personal",
+      title: "Personal",
+      description: "Trabajadores, turnos, asistencia y solicitudes de permiso.",
+      href: "/usuarios",
+      metric: `${trabajadoresActivos}`,
+      action: "Ver personal",
+      icon: "👥",
+      tone: "violet",
+    },
+    {
+      id: "configuracion",
+      title: "Configuración",
+      description: "Usuarios, perfiles, permisos y parámetros del sistema.",
+      href: "/configuracion",
+      metric: currentRole,
+      action: "Configurar",
+      icon: "⚙️",
+      tone: "slate",
+    },
+    {
+      id: "compras",
+      title: "Compras",
+      description: "Reposición sugerida, entradas reales y costo promedio.",
+      href: "/compras",
+      metric: `${comprasSugeridas}`,
+      action: "Abrir compras",
+      icon: "🧾",
+      tone: "amber",
+    },
+    {
+      id: "biblioteca",
+      title: "Biblioteca",
+      description: "Documentos, referencias internas y material operativo.",
+      href: "/biblioteca",
+      metric: "Base",
+      action: "Abrir biblioteca",
+      icon: "📚",
+      tone: "rose",
+    },
   ];
-  const secondaryModules = visibleModules.filter(
-    (module) => !groupedHrefs.includes(module.href) && module.href !== "/reportes"
-  );
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -863,58 +463,13 @@ export default async function DashboardPage() {
                     Módulos del sistema
                   </h3>
                   <p className="text-sm text-slate-500">
-                    Accesos rápidos según el perfil activo
+                    Arrastra las cards para ordenar tu pantalla.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 xl:grid-cols-2">
-                {gestionCostosLinks.length > 0 ? (
-                  <ModuleGroupCard
-                    title="Inventario, recetas y costos"
-                    description="Stock valorizado, insumos maestros, recetas, márgenes y costos de producción."
-                    metric={`${insumosCosteoList.length} ítems`}
-                    icon="box"
-                    tone="emerald"
-                    links={gestionCostosLinks.map((module) => ({
-                      label:
-                        module.href === "/recetas-costos"
-                          ? "Recetas y costos"
-                          : module.title,
-                      href: module.href,
-                      icon: moduleIconForHref(module.href),
-                    }))}
-                  />
-                ) : null}
-
-                {operacionLinks.length > 0 ? (
-                  <ModuleGroupCard
-                    title="Producción y cierre de turno"
-                    description="Planificación semanal, producción diaria, vendibles, mermas y cierre operativo."
-                    metric={`${produccionList.length} registros`}
-                    icon="production"
-                    tone="sky"
-                    links={operacionLinks.map((module) => ({
-                      label: module.title,
-                      href: module.href,
-                      icon: moduleIconForHref(module.href),
-                    }))}
-                  />
-                ) : null}
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {secondaryModules.map((module) => (
-                  <ModuleCard
-                    key={module.title}
-                    title={module.title}
-                    description={module.description}
-                    href={module.href}
-                    metric={module.metric}
-                    icon={moduleIconForHref(module.href)}
-                    tone={moduleToneForHref(module.href)}
-                  />
-                ))}
+              <div className="mt-5">
+                <DashboardCardGrid cards={dashboardModules} />
               </div>
             </div>
 
