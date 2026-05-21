@@ -123,9 +123,11 @@ async function registrarCompra(formData: FormData) {
 
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{title}</p>
-      <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <p className="text-xs leading-5 text-slate-500 sm:text-sm">{title}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-900 sm:mt-3 sm:text-3xl">
+        {value}
+      </p>
     </div>
   );
 }
@@ -197,10 +199,10 @@ export default async function ComprasPage({
             subtitle="Compras sugeridas, registro real y costo promedio ponderado"
           />
 
-          <div className="mx-auto w-full max-w-[1560px] space-y-6 p-6">
+          <div className="mx-auto w-full max-w-[1560px] space-y-4 px-3 py-4 sm:space-y-6 sm:p-6">
             {mensaje ? (
               <div
-                className={`rounded-2xl border p-5 text-sm font-semibold ${
+                className={`rounded-2xl border p-4 text-sm font-semibold sm:p-5 ${
                   estado === "ok"
                     ? "border-emerald-100 bg-emerald-50 text-emerald-800"
                     : "border-red-100 bg-red-50 text-red-700"
@@ -210,23 +212,23 @@ export default async function ComprasPage({
               </div>
             ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Insumos bajo mínimo" value={String(sugeridos.length)} />
               <StatCard title="Compras urgentes" value={String(urgentes)} />
               <StatCard title="Compra estimada" value={money(compraEstimada)} />
               <StatCard title="Inventario valorizado" value={money(valorInventario)} />
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-900">
+            <div className="grid gap-4 xl:grid-cols-[420px_1fr] xl:gap-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                <h2 className="text-lg font-bold text-slate-900 sm:text-xl">
                   Registrar compra real
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   Usa el formato comprado hoy. Puedes ingresar precio total o precio unitario por formato.
                 </p>
 
-                <form action={registrarCompra} className="mt-5 grid gap-4">
+                <form action={registrarCompra} className="mt-4 grid gap-4 sm:mt-5">
                   <label className="grid gap-2 text-sm font-semibold text-slate-700">
                     Insumo
                     <select
@@ -336,15 +338,15 @@ export default async function ComprasPage({
 
                   <button
                     type="submit"
-                    className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                    className="rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white sm:py-3"
                   >
                     Guardar compra y recalcular costo
                   </button>
                 </form>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-900">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                <h2 className="text-lg font-bold text-slate-900 sm:text-xl">
                   Compras sugeridas por stock mínimo
                 </h2>
 
@@ -353,7 +355,7 @@ export default async function ComprasPage({
                     Error al cargar compras: {error.message}
                   </div>
                 ) : (
-                  <div className="mt-5 max-h-[640px] overflow-auto rounded-xl border border-slate-200">
+                  <div className="mt-5 hidden max-h-[640px] overflow-auto rounded-xl border border-slate-200 md:block">
                     <table className="min-w-[980px] w-full text-sm">
                       <thead className="sticky top-0 z-10 bg-slate-100 text-left text-xs font-bold uppercase text-slate-500">
                         <tr>
@@ -420,6 +422,79 @@ export default async function ComprasPage({
                     </table>
                   </div>
                 )}
+
+                {!error ? (
+                  <div className="mt-4 grid gap-3 md:hidden">
+                    {sugeridos.length === 0 ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                        No hay insumos bajo mínimo por ahora.
+                      </div>
+                    ) : (
+                      sugeridos.map((item) => {
+                        const unidadStock =
+                          item.unidad_referencia ??
+                          item.unidad_formato_compra ??
+                          item.unidad_uso ??
+                          "";
+                        const formatos = suggestedFormats(item);
+                        const precioFormato = Number(
+                          item.precio_referencia ?? item.costo_compra ?? 0
+                        );
+                        const prioridad = purchasePriority(
+                          Number(item.stock_actual ?? 0),
+                          Number(item.stock_minimo ?? 0)
+                        );
+
+                        return (
+                          <article
+                            key={item.id}
+                            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <h3 className="truncate text-sm font-bold text-slate-950">
+                                  {item.nombre}
+                                </h3>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Formato ref.: {item.cantidad_formato_compra ?? 1}{" "}
+                                  {item.unidad_formato_compra ?? unidadStock}
+                                </p>
+                              </div>
+                              <PriorityBadge priority={prioridad} />
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                <p className="text-xs text-slate-500">Stock</p>
+                                <p className="font-bold text-slate-900">
+                                  {item.stock_actual ?? 0} {unidadStock}
+                                </p>
+                              </div>
+                              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                <p className="text-xs text-slate-500">Mínimo</p>
+                                <p className="font-bold text-slate-900">
+                                  {item.stock_minimo ?? 0} {unidadStock}
+                                </p>
+                              </div>
+                              <div className="rounded-lg bg-emerald-50 px-3 py-2">
+                                <p className="text-xs text-emerald-700">Comprar</p>
+                                <p className="font-bold text-emerald-900">
+                                  {formatos} formato{formatos === 1 ? "" : "s"}
+                                </p>
+                              </div>
+                              <div className="rounded-lg bg-slate-900 px-3 py-2 text-white">
+                                <p className="text-xs text-slate-300">Estimado</p>
+                                <p className="font-bold">
+                                  {money(formatos * precioFormato)}
+                                </p>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

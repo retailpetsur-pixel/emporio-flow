@@ -86,7 +86,7 @@ function ModuleCard({
     <button
       type="button"
       onClick={() => onSelect(id)}
-      className={`rounded-xl border px-4 py-3 text-left shadow-sm transition-colors ${
+      className={`min-w-[220px] shrink-0 rounded-xl border px-4 py-3 text-left shadow-sm transition-colors lg:min-w-0 ${
         active
           ? "border-slate-900 bg-slate-900 text-white"
           : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
@@ -1533,26 +1533,26 @@ if (!familiaEncontrada) {
         <Sidebar />
 
         <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur lg:px-6">
+          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:px-6 lg:py-4">
             <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-sm text-slate-500">Emporio Flow</p>
-                <h1 className="text-2xl font-bold text-slate-900">
+                <p className="text-xs text-slate-500 sm:text-sm">Emporio Flow</p>
+                <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
                   Recetas y costos
                 </h1>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <button
                   type="button"
                   onClick={() => window.history.back()}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:px-4"
                 >
                   Volver
                 </button>
                 <Link
                   href="/dashboard"
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-white sm:px-4"
                 >
                   Menú
                 </Link>
@@ -1560,7 +1560,7 @@ if (!familiaEncontrada) {
             </div>
           </header>
 
-          <div className="mx-auto grid w-full max-w-[1560px] gap-3 px-4 py-4 lg:grid-cols-3 lg:px-6">
+          <div className="mx-auto flex w-full max-w-[1560px] gap-2 overflow-x-auto px-3 py-3 sm:px-4 lg:grid lg:grid-cols-3 lg:gap-3 lg:px-6 lg:py-4">
             <ModuleCard
               id="recetas"
               title="Recetas"
@@ -1586,7 +1586,7 @@ if (!familiaEncontrada) {
           </div>
 
           {vistaModulo === "inicio" ? (
-            <div className="mx-auto w-full max-w-[1560px] px-4 pb-6 lg:px-6">
+            <div className="mx-auto w-full max-w-[1560px] px-3 pb-4 sm:px-4 lg:px-6">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div>
@@ -1724,7 +1724,7 @@ if (!familiaEncontrada) {
           ) : null}
 
           {vistaModulo === "costos" ? (
-            <div className="mx-auto grid w-full max-w-[1560px] gap-5 px-4 pb-6 lg:px-6 xl:grid-cols-3">
+            <div className="mx-auto grid w-full max-w-[1560px] gap-4 px-3 pb-4 sm:px-4 lg:px-6 xl:grid-cols-3">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm xl:col-span-3">
   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
     <div>
@@ -1881,7 +1881,7 @@ if (!familiaEncontrada) {
 
           {vistaModulo === "recetas" ? (
             <div
-              className={`mx-auto grid w-full max-w-[1560px] gap-6 px-4 pb-6 lg:px-6 ${
+              className={`mx-auto grid w-full max-w-[1560px] gap-4 px-3 pb-4 sm:px-4 lg:gap-6 lg:px-6 ${
                 mostrarFormularioReceta || recetaEditandoId
                   ? "xl:grid-cols-[minmax(0,1fr)_340px]"
                   : "xl:grid-cols-1"
@@ -1889,7 +1889,7 @@ if (!familiaEncontrada) {
             >
               <div className="space-y-6">
                 {recetaVista ? (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm text-slate-500">Vista receta</p>
@@ -2223,8 +2223,8 @@ onClick={async () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h2 className="text-xl font-bold text-slate-900">
                         Ingredientes
@@ -2256,7 +2256,109 @@ onClick={async () => {
 </div>
                   </div>
 
-                  <div className="erp-scroll mt-5 max-h-[460px] overflow-y-auto rounded-xl border border-slate-200">
+                  <div className="mt-5 grid gap-3 md:hidden">
+                    {lineas.map((linea, index) => (
+                      <article
+                        key={index}
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                            Línea {index + 1}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => removeLinea(index)}
+                            className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+
+                        <div className="grid gap-3">
+                          <Label title="Tipo">
+                            <select
+                              value={linea.tipo_item}
+                              onChange={(e) =>
+                                changeLinea(
+                                  index,
+                                  "tipo_item",
+                                  e.target.value as "insumo" | "subreceta"
+                                )
+                              }
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
+                            >
+                              <option value="insumo">Insumo</option>
+                              <option value="subreceta">Subreceta</option>
+                            </select>
+                          </Label>
+
+                          <Label title="Ingrediente">
+                            <select
+                              value={linea.item_id}
+                              onChange={(e) =>
+                                changeLinea(index, "item_id", e.target.value)
+                              }
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
+                            >
+                              <option value="">Seleccionar</option>
+                              {linea.tipo_item === "insumo"
+                                ? insumos.map((x) => (
+                                    <option key={x.id} value={x.id}>
+                                      {x.nombre}
+                                    </option>
+                                  ))
+                                : subrecetas.map((x) => (
+                                    <option key={x.id} value={x.id}>
+                                      {x.nombre}
+                                    </option>
+                                  ))}
+                            </select>
+                          </Label>
+
+                          <div className="grid grid-cols-[1fr_120px] gap-2">
+                            <Label title="Cantidad">
+                              <input
+                                value={linea.cantidad_uso}
+                                onChange={(e) =>
+                                  changeLinea(index, "cantidad_uso", e.target.value)
+                                }
+                                type="text"
+                                inputMode="decimal"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-3 text-right text-sm"
+                              />
+                            </Label>
+
+                            <Label title="Unidad">
+                              <select
+                                value={linea.unidad_uso}
+                                onChange={(e) =>
+                                  changeLinea(index, "unidad_uso", e.target.value)
+                                }
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
+                              >
+                                <option value="">Unidad</option>
+                                <option value="grs">grs</option>
+                                <option value="ml">ml</option>
+                                <option value="un">un</option>
+                                <option value="kg">kg</option>
+                                <option value="litros">litros</option>
+                              </select>
+                            </Label>
+                          </div>
+
+                          <div className="rounded-xl bg-white px-3 py-3 text-right">
+                            <p className="text-xs text-slate-500">Costo línea</p>
+                            <p className="text-sm font-bold text-slate-900">
+                              {money(costoLinea(linea))}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+
+                  <div className="erp-scroll mt-5 hidden max-h-[460px] overflow-y-auto rounded-xl border border-slate-200 md:block">
                     <table className="w-full min-w-[720px] text-sm">
                       <thead>
                         <tr className="sticky top-0 z-10 border-b bg-slate-100 text-left text-xs font-bold uppercase text-slate-500">
@@ -2621,7 +2723,7 @@ onClick={async () => {
           ) : null}
 
           {vistaModulo === "insumos" ? (
-            <div className="mx-auto w-full max-w-[1560px] space-y-6 px-4 pb-6 lg:px-6">
+            <div className="mx-auto w-full max-w-[1560px] space-y-4 px-3 pb-4 sm:px-4 lg:space-y-6 lg:px-6">
               <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -2825,7 +2927,7 @@ onClick={async () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="text-xl font-bold text-slate-900">
                   Carga masiva de insumos
                 </h2>
@@ -2861,7 +2963,7 @@ onClick={async () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="text-xl font-bold text-slate-900">
                   Insumos maestros
                 </h2>
@@ -3043,7 +3145,88 @@ onClick={async () => {
                   </div>
                 </details>
 
-                <div className="erp-scroll mt-4 max-h-[520px] overflow-y-auto rounded-xl border border-slate-200">
+                <div className="mt-4 grid gap-3 md:hidden">
+                  {insumosFiltrados.map((item) => {
+                    const bajoMinimo =
+                      Number(item.stock_minimo ?? 0) > 0 &&
+                      Number(item.stock_actual ?? 0) <= Number(item.stock_minimo ?? 0);
+                    const sinCosto = Number(item.costo_unitario_uso ?? 0) <= 0;
+
+                    return (
+                      <article
+                        key={item.id}
+                        className={`rounded-xl border p-4 shadow-sm ${
+                          bajoMinimo
+                            ? "border-red-100 bg-red-50/70"
+                            : sinCosto
+                            ? "border-amber-100 bg-amber-50/70"
+                            : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-bold text-slate-950">
+                              {item.nombre}
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {getFamiliaInsumo(item.familia_id)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                cargarInsumoParaEditar(item);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => eliminarInsumo(item.id)}
+                              className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                          <div className="rounded-lg bg-white/80 px-3 py-2">
+                            <p className="text-xs text-slate-500">Stock actual</p>
+                            <p className={bajoMinimo ? "font-bold text-red-700" : "font-bold text-slate-900"}>
+                              {item.stock_actual ?? 0} {item.unidad_referencia || ""}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-white/80 px-3 py-2">
+                            <p className="text-xs text-slate-500">Mínimo</p>
+                            <p className="font-bold text-slate-900">
+                              {item.stock_minimo ?? 0} {item.unidad_referencia || ""}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-white/80 px-3 py-2">
+                            <p className="text-xs text-slate-500">Formato</p>
+                            <p className="font-bold text-slate-900">
+                              {item.cantidad_formato_compra || 1}{" "}
+                              {item.unidad_formato_compra || "-"}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-slate-900 px-3 py-2 text-white">
+                            <p className="text-xs text-slate-300">Costo uso</p>
+                            <p className="font-bold">
+                              {money(item.costo_unitario_uso || 0)} /{" "}
+                              {item.unidad_uso || "-"}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <div className="erp-scroll mt-4 hidden max-h-[520px] overflow-y-auto rounded-xl border border-slate-200 md:block">
                   <table className="min-w-full text-sm">
                     <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm">
                       <tr>
@@ -3144,8 +3327,8 @@ onClick={async () => {
           ) : null}
 
           {vistaModulo === "produccion" ? (
-            <div className="mx-auto w-full max-w-[1560px] px-4 pb-6 lg:px-6">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mx-auto w-full max-w-[1560px] px-3 pb-4 sm:px-4 lg:px-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="text-xl font-bold text-slate-900">
                   Registrar producción
                 </h2>

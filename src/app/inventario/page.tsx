@@ -255,9 +255,11 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{title}</p>
-      <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <p className="text-xs leading-5 text-slate-500 sm:text-sm">{title}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-900 sm:mt-3 sm:text-3xl">
+        {value}
+      </p>
     </div>
   );
 }
@@ -423,10 +425,10 @@ export default async function InventarioPage({
             subtitle="Control de insumos, subproductos y stock crítico"
           />
 
-          <div className="p-6">
+          <div className="px-3 py-4 sm:p-6">
             {mensaje ? (
               <div
-                className={`mb-6 rounded-2xl border p-5 text-sm font-semibold ${
+                className={`mb-4 rounded-2xl border p-4 text-sm font-semibold sm:mb-6 sm:p-5 ${
                   estadoMensaje === "ok"
                     ? "border-emerald-100 bg-emerald-50 text-emerald-800"
                     : "border-red-100 bg-red-50 text-red-700"
@@ -436,13 +438,13 @@ export default async function InventarioPage({
               </div>
             ) : null}
 
-            <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+            <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm sm:mb-6 sm:p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
                     Entrada de mercadería
                   </p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-950">
+                  <h2 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">
                     Registrar compra o ingreso
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-emerald-800">
@@ -460,7 +462,7 @@ export default async function InventarioPage({
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Ítems activos" value={String(totalItems)} />
               <StatCard title="Críticos" value={String(criticalItems)} />
               <StatCard title="Sobre stock" value={String(overstockItems)} />
@@ -470,7 +472,7 @@ export default async function InventarioPage({
             <details
               open={abrirValorizado}
               id="valorizado"
-              className="group mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="group mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:mt-6 sm:p-6"
             >
               <summary className="cursor-pointer list-none">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -484,7 +486,7 @@ export default async function InventarioPage({
                   </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
                   <div className="rounded-xl bg-slate-50 px-4 py-3">
                     <p className="text-xs text-slate-500">Insumos activos</p>
                     <p className="text-lg font-bold text-slate-900">
@@ -602,7 +604,76 @@ export default async function InventarioPage({
                   Error al cargar insumos valorizados: {insumosError.message}
                 </div>
               ) : (
-                <div className="mt-6 max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
+                <>
+                <div className="mt-5 grid gap-3 md:hidden">
+                  {insumosFiltrados.length === 0 ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                      No hay insumos valorizados para esta búsqueda.
+                    </div>
+                  ) : (
+                    insumosFiltrados.map((item) => {
+                      const unidadStock =
+                        item.unidad_referencia ??
+                        item.unidad_formato_compra ??
+                        item.unidad_uso ??
+                        "";
+                      const stock = Number(item.stock_actual ?? 0);
+                      const minimo = Number(item.stock_minimo ?? 0);
+
+                      return (
+                        <article
+                          key={item.id}
+                          className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <a
+                                href={`/recetas-costos?insumo=${item.id}`}
+                                className="block truncate text-sm font-bold text-slate-950 hover:text-emerald-700 hover:underline"
+                              >
+                                {item.nombre}
+                              </a>
+                              <p className="mt-1 text-xs text-slate-500">
+                                Formato: {item.cantidad_formato_compra ?? 1}{" "}
+                                {item.unidad_formato_compra ?? unidadStock} ·{" "}
+                                {money(Number(item.precio_referencia ?? 0))}
+                              </p>
+                            </div>
+                            <StatusBadge status={estadoInsumo(item)} />
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                            <div className="rounded-lg bg-slate-50 px-3 py-2">
+                              <p className="text-xs text-slate-500">Stock físico</p>
+                              <p className="font-bold text-slate-900">
+                                {quantity(stock)} {unidadStock}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 px-3 py-2">
+                              <p className="text-xs text-slate-500">Mínimo</p>
+                              <p className="font-bold text-slate-900">
+                                {quantity(minimo)} {unidadStock}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 px-3 py-2">
+                              <p className="text-xs text-slate-500">Costo receta</p>
+                              <p className="font-bold text-slate-900">
+                                ${unitMoney(Number(item.costo_unitario_uso ?? 0))} /{" "}
+                                {item.unidad_uso ?? unidadStock}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-slate-900 px-3 py-2 text-white">
+                              <p className="text-xs text-slate-300">Valor stock</p>
+                              <p className="font-bold">{money(valorInsumo(item))}</p>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="mt-6 hidden max-h-[70vh] overflow-auto rounded-xl border border-slate-200 md:block">
                   <table className="min-w-[900px] w-full text-sm">
                     <thead className="sticky top-0 z-20 bg-slate-100 text-left text-xs font-bold uppercase text-slate-500 shadow-sm">
                       <tr>
@@ -670,13 +741,14 @@ export default async function InventarioPage({
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </details>
 
             <details
               open={abrirExistencias}
               id="existencias"
-              className="group mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="group mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:mt-6 sm:p-6"
             >
               <summary className="cursor-pointer list-none">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -710,7 +782,7 @@ export default async function InventarioPage({
                   <span className="group-open:hidden">Expandir</span>
                 </div>
 
-                <div className="mt-4 grid gap-3 group-open:hidden sm:grid-cols-4">
+                <div className="mt-4 grid grid-cols-2 gap-3 group-open:hidden sm:grid-cols-4">
                   <div className="rounded-xl bg-slate-50 px-4 py-3">
                     <p className="text-xs text-slate-500">Ítems</p>
                     <p className="text-lg font-bold text-slate-900">
@@ -832,7 +904,84 @@ export default async function InventarioPage({
                   formatos de compra se registran en Compras.
                 </div>
 
-                <div className="mt-6 max-h-[70vh] overflow-auto rounded-xl border border-slate-200">
+                <div className="mt-5 grid gap-3 md:hidden">
+                  {productosFiltrados.length === 0 ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                      No hay existencias para esta búsqueda.
+                    </div>
+                  ) : (
+                    productosFiltrados.map((item) => (
+                      <article
+                        key={item.id}
+                        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <a
+                              href={`/nuevo-item?id=${item.id}`}
+                              className="block truncate text-sm font-bold text-slate-950 underline-offset-4 hover:text-emerald-700 hover:underline"
+                            >
+                              {item.nombre}
+                            </a>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {item.tipo} · {item.categoria}
+                            </p>
+                          </div>
+                          <StatusBadge status={item.estado} />
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                          <div className="rounded-lg bg-slate-50 px-3 py-2">
+                            <p className="text-xs text-slate-500">Actual</p>
+                            <p className="font-bold text-slate-900">
+                              {quantity(item.stock_actual)} {item.unidad ?? ""}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 px-3 py-2">
+                            <p className="text-xs text-slate-500">Mínimo</p>
+                            <p className="font-bold text-slate-900">
+                              {quantity(item.stock_minimo)}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 px-3 py-2">
+                            <p className="text-xs text-slate-500">Máximo</p>
+                            <p className="font-bold text-slate-900">
+                              {quantity(item.stock_maximo)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <form action={ajustarStockProducto} className="mt-4 grid gap-2">
+                          <input type="hidden" name="id" value={item.id} />
+                          <input type="hidden" name="accion" value="fijar" />
+                          <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                            Conteo físico real
+                          </label>
+                          <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-emerald-400">
+                            <input
+                              name="stock_real"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="Ej: 2,5"
+                              className="min-w-0 flex-1 border-0 bg-white px-3 py-3 text-right text-sm text-slate-900 outline-none"
+                            />
+                            <span className="border-l border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-600">
+                              {item.unidad ?? "-"}
+                            </span>
+                          </div>
+                          <button
+                            type="submit"
+                            className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+                          >
+                            Guardar conteo
+                          </button>
+                        </form>
+                      </article>
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-6 hidden max-h-[70vh] overflow-auto rounded-xl border border-slate-200 md:block">
                   <table className="min-w-[1120px] w-full border-separate border-spacing-y-2">
                     <thead className="sticky top-0 z-20 bg-white shadow-sm">
                       <tr className="text-left text-sm text-slate-500">
