@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/emporio/sidebar";
 import { stockValue } from "@/lib/domain/inventory";
+import { resolvePurchasePrice } from "@/lib/domain/purchasing";
 import { convertQuantity, normalizeUnit } from "@/lib/domain/units";
 import { formatCurrencyCLP, parseDecimal } from "@/lib/format";
 import { createClient } from "@/lib/supabase-browser";
@@ -226,7 +227,11 @@ function RecetasCostosContent() {
   const [insumoEditandoId, setInsumoEditandoId] = useState("");
   const [nuevoInsumoNombre, setNuevoInsumoNombre] = useState("");
   const [nuevoInsumoFamiliaId, setNuevoInsumoFamiliaId] = useState("");
-  const [nuevoPrecioReferencia, setNuevoPrecioReferencia] = useState("");
+  const [nuevoPrecioTotal, setNuevoPrecioTotal] = useState("");
+  const [nuevoPrecioUnitarioFormato, setNuevoPrecioUnitarioFormato] = useState("");
+  const [nuevoPrecioIva, setNuevoPrecioIva] = useState<"neto" | "iva_incluido">(
+    "neto"
+  );
   const [nuevoCantidadFormato, setNuevoCantidadFormato] = useState("1");
   const [nuevoUnidadFormato, setNuevoUnidadFormato] = useState("kg");
   const [nuevoUnidadUso, setNuevoUnidadUso] = useState("grs");
@@ -738,9 +743,17 @@ for (const receta of recetasFinales) {
     )
     .slice(0, 5);
 
-  const precioFormatoPreview = decimal(nuevoPrecioReferencia);
+  const precioTotalPreview = decimal(nuevoPrecioTotal);
+  const precioUnitarioFormatoPreview = decimal(nuevoPrecioUnitarioFormato);
   const cantidadFormatoPreview = decimal(nuevoCantidadFormato);
   const stockFormatosPreview = decimal(nuevoStockFormatos);
+  const precioPreview = resolvePurchasePrice({
+    cantidadFormatos: stockFormatosPreview > 0 ? stockFormatosPreview : 1,
+    precioTotal: precioTotalPreview,
+    precioUnitarioFormato: precioUnitarioFormatoPreview,
+    incluyeIva: nuevoPrecioIva === "iva_incluido",
+  });
+  const precioFormatoPreview = precioPreview.precioFormato;
   let costoUsoPreview = 0;
 
   if (precioFormatoPreview > 0 && cantidadFormatoPreview > 0) {
@@ -954,17 +967,32 @@ async function eliminarFamiliaInsumo(familia: Item) {
         throw new Error("Completa nombre y familia del insumo.");
       }
 
-      const precio = decimal(nuevoPrecioReferencia);
+      const precioTotalIngresado = decimal(nuevoPrecioTotal);
+      const precioUnitarioFormato = decimal(nuevoPrecioUnitarioFormato);
       const cantidad = decimal(nuevoCantidadFormato);
       const stockFormatos = decimal(nuevoStockFormatos);
       const stockMinimo = decimal(nuevoStockMinimo);
+      const precioResuelto = resolvePurchasePrice({
+        cantidadFormatos: stockFormatos > 0 ? stockFormatos : 1,
+        precioTotal: precioTotalIngresado,
+        precioUnitarioFormato,
+        incluyeIva: nuevoPrecioIva === "iva_incluido",
+      });
 
-      if (precio <= 0 || cantidad <= 0) {
-        throw new Error("Precio y cantidad deben ser mayores a 0.");
+      if (precioTotalIngresado > 0 && stockFormatos <= 0) {
+        throw new Error(
+          "Si ingresas precio total, la cantidad de formatos iniciales debe ser mayor a 0. Para crear sin stock, usa precio unitario/formato."
+        );
+      }
+
+      if (precioResuelto.precioFormato <= 0 || cantidad <= 0) {
+        throw new Error(
+          "Completa contenido por formato y al menos un precio: total o unitario."
+        );
       }
 
       const factor = factorConversion(nuevoUnidadFormato, nuevoUnidadUso);
-      const costoTotal = precio;
+      const costoTotal = precioResuelto.precioFormato;
       const cantidadTotalUso = cantidad * factor;
       const costoUnitarioUso = costoTotal / cantidadTotalUso;
 
@@ -972,7 +1000,7 @@ async function eliminarFamiliaInsumo(familia: Item) {
         nombre: nuevoInsumoNombre.trim(),
         familia_id: nuevoInsumoFamiliaId,
         categoria: null,
-        precio_referencia: precio,
+        precio_referencia: precioResuelto.precioFormato,
         unidad_referencia: nuevoUnidadFormato,
         cantidad_formato_compra: cantidad,
         unidad_formato_compra: nuevoUnidadFormato,
@@ -982,7 +1010,7 @@ async function eliminarFamiliaInsumo(familia: Item) {
         costo_unitario_uso: costoUnitarioUso,
         unidad_compra: nuevoUnidadFormato,
         cantidad_compra: cantidad,
-        costo_compra: precio,
+        costo_compra: precioResuelto.precioFormato,
         stock_actual: stockFormatos * cantidad,
         stock_minimo: stockMinimo,
         activo: true,
@@ -1019,7 +1047,9 @@ async function eliminarFamiliaInsumo(familia: Item) {
     setInsumoEditandoId("");
     setNuevoInsumoNombre("");
     setNuevoInsumoFamiliaId("");
-    setNuevoPrecioReferencia("");
+    setNuevoPrecioTotal("");
+    setNuevoPrecioUnitarioFormato("");
+    setNuevoPrecioIva("neto");
     setNuevoCantidadFormato("1");
     setNuevoUnidadFormato("kg");
     setNuevoUnidadUso("grs");
@@ -1033,7 +1063,11 @@ async function eliminarFamiliaInsumo(familia: Item) {
     setInsumoEditandoId(insumo.id);
     setNuevoInsumoNombre(insumo.nombre);
     setNuevoInsumoFamiliaId(insumo.familia_id ?? "");
-    setNuevoPrecioReferencia(String(insumo.precio_referencia ?? insumo.costo_compra ?? ""));
+    setNuevoPrecioTotal("");
+    setNuevoPrecioUnitarioFormato(
+      String(insumo.precio_referencia ?? insumo.costo_compra ?? "")
+    );
+    setNuevoPrecioIva("neto");
     setNuevoCantidadFormato(String(insumo.cantidad_formato_compra ?? 1));
     setNuevoUnidadFormato(insumo.unidad_formato_compra ?? insumo.unidad_compra ?? "kg");
     setNuevoUnidadUso(insumo.unidad_uso ?? "grs");
@@ -2761,17 +2795,6 @@ onClick={async () => {
                   </div>
 
                   <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <Label title="Precio del envase o formato">
-                      <input
-                        value={nuevoPrecioReferencia}
-                        onChange={(e) => setNuevoPrecioReferencia(e.target.value)}
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ej: 3000"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-                      />
-                    </Label>
-
                     <Label title="Contenido del envase">
                       <input
                         value={nuevoCantidadFormato}
@@ -2800,6 +2823,43 @@ onClick={async () => {
                     </Label>
                   </div>
 
+                  <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <Label title="Cantidad de formatos iniciales">
+                      <input
+                        value={nuevoStockFormatos}
+                        onChange={(e) => setNuevoStockFormatos(e.target.value)}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ej: 2"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                      />
+                    </Label>
+
+                    <Label title="Precio total pagado">
+                      <input
+                        value={nuevoPrecioTotal}
+                        onChange={(e) => setNuevoPrecioTotal(e.target.value)}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ej: 7600"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                      />
+                    </Label>
+
+                    <Label title="Precio unitario/formato">
+                      <input
+                        value={nuevoPrecioUnitarioFormato}
+                        onChange={(e) =>
+                          setNuevoPrecioUnitarioFormato(e.target.value)
+                        }
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ej: 3800"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                      />
+                    </Label>
+                  </div>
+
                   <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                     <Label title="Unidad uso receta">
                       <select
@@ -2813,6 +2873,51 @@ onClick={async () => {
                       </select>
                     </Label>
 
+                    <fieldset className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <legend className="px-1 text-sm font-semibold text-slate-700">
+                        Tipo de precio ingresado
+                      </legend>
+                      <label className="flex items-start gap-3 text-sm text-slate-700">
+                        <input
+                          type="radio"
+                          name="nuevo_precio_iva"
+                          value="neto"
+                          checked={nuevoPrecioIva === "neto"}
+                          onChange={() => setNuevoPrecioIva("neto")}
+                          className="mt-1"
+                        />
+                        <span>
+                          <strong>Neto / sin IVA</strong>
+                          <span className="block text-xs text-slate-500">
+                            Para facturas que muestran valores netos por línea.
+                          </span>
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 text-sm text-slate-700">
+                        <input
+                          type="radio"
+                          name="nuevo_precio_iva"
+                          value="iva_incluido"
+                          checked={nuevoPrecioIva === "iva_incluido"}
+                          onChange={() => setNuevoPrecioIva("iva_incluido")}
+                          className="mt-1"
+                        />
+                        <span>
+                          <strong>Con IVA incluido</strong>
+                          <span className="block text-xs text-slate-500">
+                            Se descuenta 19% para guardar el costo neto.
+                          </span>
+                        </span>
+                      </label>
+                    </fieldset>
+                  </div>
+
+                  <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                    <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
+                      Si completas ambos precios, se usará el total pagado. Para
+                      facturas con varios insumos, usa el precio unitario de la línea.
+                    </p>
+
                     <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
                       <p className="text-sm font-semibold text-emerald-900">
                         Costo calculado para receta
@@ -2821,23 +2926,13 @@ onClick={async () => {
                         {money(costoUsoPreview)} / {nuevoUnidadUso}
                       </p>
                       <p className="mt-1 text-xs text-emerald-700">
-                        Se divide el precio del envase por su contenido total.
+                        Formato neto: {money(precioFormatoPreview)}. Se divide
+                        por el contenido convertido a unidad de receta.
                       </p>
                     </div>
                   </div>
 
                   <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <Label title="Stock actual en formatos">
-                      <input
-                        value={nuevoStockFormatos}
-                        onChange={(e) => setNuevoStockFormatos(e.target.value)}
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ej: 3"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-                      />
-                    </Label>
-
                     <Label
                       title={`Stock mínimo en unidad de inventario (${nuevoUnidadFormato})`}
                     >
