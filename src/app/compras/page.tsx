@@ -2,6 +2,7 @@ import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { purchasePriority, stockValue, suggestedFormats } from "@/lib/domain/inventory";
 import { calculatePurchaseCost, resolvePurchasePrice } from "@/lib/domain/purchasing";
+import { formatCurrencyCLP, parseDecimal } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -24,16 +25,11 @@ type Insumo = {
 };
 
 function money(v: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(v || 0);
+  return formatCurrencyCLP(v, 0);
 }
 
 function decimal(value: FormDataEntryValue | null) {
-  const parsed = Number(String(value ?? "0").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parseDecimal(value);
 }
 
 async function registrarCompra(formData: FormData) {

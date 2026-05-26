@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/emporio/sidebar";
+import { formatCurrencyCLP, parseDecimal } from "@/lib/format";
 import { createClient } from "@/lib/supabase-browser";
 
 type Categoria = {
@@ -28,16 +29,11 @@ type Producto = {
 };
 
 function money(value: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 2,
-  }).format(value || 0);
+  return formatCurrencyCLP(value);
 }
 
 function decimal(value: string | number | null | undefined) {
-  const parsed = Number(String(value ?? "0").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parseDecimal(value);
 }
 
 function factorConversion(unidadReferencia: string, unidadUso: string) {

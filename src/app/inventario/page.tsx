@@ -1,6 +1,8 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import AutoSubmitForm from "@/components/emporio/auto-submit-form";
+import { convertQuantity } from "@/lib/domain/units";
+import { formatCurrencyCLP, formatNumberCL, parseDecimal } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -39,54 +41,19 @@ type Familia = {
 };
 
 function money(v: number) {
-  const decimals = Number.isInteger(v) ? 0 : 2;
-
-  return `$${new Intl.NumberFormat("es-CL", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: 2,
-  }).format(v || 0)}`;
+  return formatCurrencyCLP(v);
 }
 
 function unitMoney(v: number) {
-  return new Intl.NumberFormat("es-CL", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(v || 0);
+  return formatNumberCL(v);
 }
 
 function quantity(v: number) {
-  return new Intl.NumberFormat("es-CL", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(v || 0);
+  return formatNumberCL(v);
 }
 
 function decimal(value: FormDataEntryValue | null) {
-  const parsed = Number(String(value ?? "0").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normalizarUnidad(unidad: string) {
-  const u = unidad.trim().toLowerCase();
-
-  if (["gr", "grs", "g", "gramo", "gramos"].includes(u)) return "grs";
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos"].includes(u)) return "kg";
-  if (["ml", "mililitro", "mililitros"].includes(u)) return "ml";
-  if (["lt", "lts", "litro", "litros"].includes(u)) return "litros";
-  if (["un", "unidad", "unidades", "u"].includes(u)) return "un";
-
-  return u;
-}
-
-function factorConversion(unidadStock: string, unidadUso: string) {
-  const stock = normalizarUnidad(unidadStock);
-  const uso = normalizarUnidad(unidadUso);
-
-  if (stock === "kg" && uso === "grs") return 1000;
-  if (stock === "litros" && uso === "ml") return 1000;
-  if (stock === uso) return 1;
-
-  return 1;
+  return parseDecimal(value);
 }
 
 function valorInsumo(item: InsumoCosteo) {
@@ -95,9 +62,8 @@ function valorInsumo(item: InsumoCosteo) {
   const unidadStock =
     item.unidad_referencia ?? item.unidad_formato_compra ?? item.unidad_uso ?? "";
   const unidadUso = item.unidad_uso ?? unidadStock;
-  const factor = factorConversion(unidadStock, unidadUso);
 
-  return stock * factor * costoUso;
+  return convertQuantity(stock, unidadStock, unidadUso) * costoUso;
 }
 
 function estadoInsumo(item: InsumoCosteo): InventoryStatus {

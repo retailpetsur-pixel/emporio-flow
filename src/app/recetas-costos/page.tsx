@@ -4,6 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/emporio/sidebar";
+import { convertQuantity, normalizeUnit } from "@/lib/domain/units";
+import { formatCurrencyCLP, parseDecimal } from "@/lib/format";
 import { createClient } from "@/lib/supabase-browser";
 import ExcelJS from "exceljs";
 
@@ -107,16 +109,11 @@ function ModuleCard({
 }
 
 function money(v: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 2,
-  }).format(v || 0);
+  return formatCurrencyCLP(v);
 }
 
 function decimal(value: unknown) {
-  const parsed = Number(String(value ?? "0").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parseDecimal(value as string | number | null | undefined);
 }
 
 function cellValueToText(value: ExcelJS.CellValue) {
@@ -171,15 +168,7 @@ function Label({
 }
 
 function normalizarUnidad(unidad: string) {
-  const u = unidad.trim().toLowerCase();
-
-  if (["gr", "grs", "g", "gramo", "gramos"].includes(u)) return "grs";
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos"].includes(u)) return "kg";
-  if (["ml", "mililitro", "mililitros"].includes(u)) return "ml";
-  if (["lt", "lts", "litro", "litros"].includes(u)) return "litros";
-  if (["un", "unidad", "unidades", "u"].includes(u)) return "un";
-
-  return u;
+  return normalizeUnit(unidad);
 }
 
 function factorConversion(unidadReferencia: string, unidadUso: string) {
@@ -195,24 +184,8 @@ function factorConversion(unidadReferencia: string, unidadUso: string) {
   );
 }
 
-function factorCantidad(desde: string, hacia: string) {
-  const from = normalizarUnidad(desde);
-  const to = normalizarUnidad(hacia);
-
-  if (from === to) return 1;
-
-  if (from === "kg" && to === "grs") return 1000;
-  if (from === "grs" && to === "kg") return 1 / 1000;
-
-  if (from === "litros" && to === "ml") return 1000;
-  if (from === "ml" && to === "litros") return 1 / 1000;
-
-  console.warn("Conversión de cantidad no soportada:", from, to);
-  return 1;
-}
-
 function convertirCantidad(cantidad: number, desde: string, hacia: string) {
-  return cantidad * factorCantidad(desde, hacia);
+  return convertQuantity(cantidad, desde, hacia);
 }
 
 function RecetasCostosContent() {
@@ -1141,14 +1114,6 @@ async function eliminarReceta(id: string) {
       }
 
       const tipo = tipos.find((x) => x.id === tipoId);
-      console.log("DEBUG GUARDAR", {
-  recetaEditandoId,
-  tipoId,
-  tipoNombre: tipo?.nombre,
-  familiaId,
-  nombre,
-  recetaPayloadTipo: tipoId,
-});
 
       if (!tipo) {
   throw new Error("Selecciona un tipo de receta válido.");
@@ -1203,7 +1168,9 @@ if (recetaId) {
 
   if (readError) throw new Error(readError.message);
 
-  console.log("RECETA LEÍDA DESPUÉS DE ACTUALIZAR:", recetaActualizada);
+  if (!recetaActualizada) {
+    throw new Error("No se pudo confirmar la receta actualizada.");
+  }
 
         const { error: deleteError } = await supabase
           .from("receta_detalle")
@@ -1307,20 +1274,8 @@ for (const detalle of detalles) {
   const cantidadReceta = Number(detalle.cantidad_uso || 0);
   const cantidadTotal = cantidadReceta * cantidad;
 
-  // Convertir a unidad base del insumo
-const ref = normalizarUnidad(insumo.unidad_referencia || "");
-const uso = normalizarUnidad(detalle.unidad_uso || "");
-
-let factor = 1;
-
-if (ref === "kg" && uso === "grs") factor = 1 / 1000;
-else if (ref === "litros" && uso === "ml") factor = 1 / 1000;
-else if (ref === uso) factor = 1;
-else {
-  console.warn("Conversión no controlada:", ref, uso);
-}
-
-  const descuento = cantidadTotal * factor;
+  const unidadReferencia = insumo.unidad_referencia || detalle.unidad_uso || "";
+  const descuento = convertirCantidad(cantidadTotal, detalle.unidad_uso, unidadReferencia);
 
   const stockActual = Number(insumo.stock_actual || 0);
   const nuevoStock = stockActual - descuento;

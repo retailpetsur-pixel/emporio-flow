@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
+import { formatCurrencyCLP } from "@/lib/format";
 import { createClient } from "@/lib/supabase-browser";
 
 type Receta = {
@@ -43,11 +44,7 @@ type CierreOperativo = {
 };
 
 function money(v: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(v || 0);
+  return formatCurrencyCLP(v, 0);
 }
 
 function fechaLocal() {
