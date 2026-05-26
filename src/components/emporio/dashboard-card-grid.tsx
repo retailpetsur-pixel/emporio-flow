@@ -118,7 +118,7 @@ export default function DashboardCardGrid({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {orderedCards.map((card) => {
         const styles = toneStyles[card.tone];
         const isDragging = draggingId === card.id;
@@ -131,22 +131,22 @@ export default function DashboardCardGrid({
             onDragEnd={() => setDraggingId(null)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => moveCard(card.id)}
-            className={`min-h-64 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition ${styles.ring} ${
+            className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition sm:min-h-64 sm:p-5 ${styles.ring} ${
               isDragging ? "scale-[0.98] opacity-60" : "hover:-translate-y-0.5"
             }`}
           >
-            <div className="flex h-full min-h-56 cursor-grab flex-col justify-between gap-5 active:cursor-grabbing">
+            <div className="flex h-full cursor-grab flex-col justify-between gap-4 active:cursor-grabbing sm:min-h-56 sm:gap-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h4 className="text-lg font-bold text-slate-900">
                     {card.title}
                   </h4>
-                  <p className="mt-3 text-4xl font-bold tracking-tight text-slate-950">
+                  <p className="mt-2 break-words text-3xl font-bold tracking-tight text-slate-950 sm:mt-3 sm:text-4xl">
                     {card.metric}
                   </p>
                 </div>
                 <span
-                  className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-3xl ${styles.icon}`}
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl sm:h-16 sm:w-16 sm:text-3xl ${styles.icon}`}
                   aria-hidden="true"
                 >
                   {card.icon}

@@ -44,6 +44,10 @@ function money(v: number) {
   return formatCurrencyCLP(v);
 }
 
+function stockMoney(v: number) {
+  return formatCurrencyCLP(v, 0);
+}
+
 function unitMoney(v: number) {
   return formatNumberCL(v);
 }
@@ -419,16 +423,24 @@ export default async function InventarioPage({
                     promedio ponderado.
                   </p>
                 </div>
-                <a
-                  href="/compras"
-                  className="rounded-xl bg-emerald-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
-                >
-                  Registrar entrada
-                </a>
+                <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[360px]">
+                  <a
+                    href="/compras"
+                    className="rounded-xl bg-emerald-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-emerald-800"
+                  >
+                    Registrar entrada
+                  </a>
+                  <a
+                    href="/recetas-costos?modulo=insumos"
+                    className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-center text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-50"
+                  >
+                    Crear insumo
+                  </a>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Ítems activos" value={String(totalItems)} />
               <StatCard title="Críticos" value={String(criticalItems)} />
               <StatCard title="Sobre stock" value={String(overstockItems)} />
@@ -468,7 +480,7 @@ export default async function InventarioPage({
                   <div className="rounded-xl bg-emerald-50 px-4 py-3">
                     <p className="text-xs text-emerald-700">Valor total</p>
                     <p className="text-lg font-bold text-emerald-800">
-                      {money(valorTotalInsumos)}
+                      {stockMoney(valorTotalInsumos)}
                     </p>
                   </div>
                 </div>
@@ -488,7 +500,7 @@ export default async function InventarioPage({
                   <div className="rounded-xl bg-emerald-50 px-4 py-3">
                     <p className="text-xs text-emerald-700">Valor total</p>
                     <p className="text-lg font-bold text-emerald-800">
-                      {money(valorTotalInsumos)}
+                      {stockMoney(valorTotalInsumos)}
                     </p>
                   </div>
                   <div className="rounded-xl bg-red-50 px-4 py-3">
@@ -608,7 +620,7 @@ export default async function InventarioPage({
                             <StatusBadge status={estadoInsumo(item)} />
                           </div>
 
-                          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                          <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                             <div className="rounded-lg bg-slate-50 px-3 py-2">
                               <p className="text-xs text-slate-500">Stock físico</p>
                               <p className="font-bold text-slate-900">
@@ -630,7 +642,7 @@ export default async function InventarioPage({
                             </div>
                             <div className="rounded-lg bg-slate-900 px-3 py-2 text-white">
                               <p className="text-xs text-slate-300">Valor stock</p>
-                              <p className="font-bold">{money(valorInsumo(item))}</p>
+                              <p className="font-bold">{stockMoney(valorInsumo(item))}</p>
                             </div>
                           </div>
                         </article>
@@ -695,7 +707,7 @@ export default async function InventarioPage({
                                 {item.unidad_uso ?? unidadStock}
                               </td>
                               <td className="px-4 py-3 text-right font-bold text-slate-900">
-                                {money(valorInsumo(item))}
+                                {stockMoney(valorInsumo(item))}
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <StatusBadge status={estadoInsumo(item)} />
@@ -748,7 +760,7 @@ export default async function InventarioPage({
                   <span className="group-open:hidden">Expandir</span>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 group-open:hidden sm:grid-cols-4">
+                <div className="mt-4 grid gap-3 group-open:hidden sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-xl bg-slate-50 px-4 py-3">
                     <p className="text-xs text-slate-500">Ítems</p>
                     <p className="text-lg font-bold text-slate-900">
@@ -896,7 +908,7 @@ export default async function InventarioPage({
                           <StatusBadge status={item.estado} />
                         </div>
 
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
                           <div className="rounded-lg bg-slate-50 px-3 py-2">
                             <p className="text-xs text-slate-500">Actual</p>
                             <p className="font-bold text-slate-900">

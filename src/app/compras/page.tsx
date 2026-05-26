@@ -41,10 +41,12 @@ async function registrarCompra(formData: FormData) {
   const unidadFormato = String(formData.get("unidad_formato") || "");
   const precioTotalIngresado = decimal(formData.get("precio_total"));
   const precioUnitarioFormato = decimal(formData.get("precio_unitario_formato"));
-  const { precioTotal, precioFormato, modoPrecio } = resolvePurchasePrice({
+  const incluyeIva = String(formData.get("precio_iva") || "neto") === "iva_incluido";
+  const { precioTotal, precioFormato, modoPrecio, modoIva } = resolvePurchasePrice({
     cantidadFormatos,
     precioTotal: precioTotalIngresado,
     precioUnitarioFormato,
+    incluyeIva,
   });
 
   if (
@@ -112,6 +114,10 @@ async function registrarCompra(formData: FormData) {
         { maximumFractionDigits: 2 }
       )} ${unidadStock}. Precio tomado por ${
         modoPrecio === "unitario" ? "valor unitario" : "total de compra"
+      } ${
+        modoIva === "iva_incluido"
+          ? "con IVA incluido y convertido a neto para costeo"
+          : "neto/sin IVA"
       }.`
     )}`
   );
@@ -208,7 +214,7 @@ export default async function ComprasPage({
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard title="Insumos bajo mínimo" value={String(sugeridos.length)} />
               <StatCard title="Compras urgentes" value={String(urgentes)} />
               <StatCard title="Compra estimada" value={money(compraEstimada)} />
@@ -221,7 +227,7 @@ export default async function ComprasPage({
                   Registrar compra real
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Usa el formato comprado hoy. Puedes ingresar precio total o precio unitario por formato.
+                  Usa el formato comprado hoy. Puedes ingresar precio neto o con IVA incluido.
                 </p>
 
                 <form action={registrarCompra} className="mt-4 grid gap-4 sm:mt-5">
@@ -310,8 +316,43 @@ export default async function ComprasPage({
                     </label>
                   </div>
 
+                  <fieldset className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <legend className="px-1 text-sm font-semibold text-slate-700">
+                      Tipo de precio ingresado
+                    </legend>
+                    <label className="flex items-start gap-3 text-sm text-slate-700">
+                      <input
+                        name="precio_iva"
+                        type="radio"
+                        value="neto"
+                        defaultChecked
+                        className="mt-1"
+                      />
+                      <span>
+                        <strong>Neto / sin IVA</strong>
+                        <span className="block text-xs text-slate-500">
+                          Úsalo cuando la factura muestra valores netos por línea.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-3 text-sm text-slate-700">
+                      <input
+                        name="precio_iva"
+                        type="radio"
+                        value="iva_incluido"
+                        className="mt-1"
+                      />
+                      <span>
+                        <strong>Con IVA incluido</strong>
+                        <span className="block text-xs text-slate-500">
+                          El sistema descuenta 19% para guardar costo neto.
+                        </span>
+                      </span>
+                    </label>
+                  </fieldset>
+
                   <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
-                    Si completas ambos precios, se usará el total pagado. Para boletas con varios insumos, usa el precio unitario de la línea.
+                    Si completas ambos precios, se usará el total pagado. Para facturas con varios insumos, usa el precio unitario de la línea.
                   </p>
 
                   <label className="grid gap-2 text-sm font-semibold text-slate-700">

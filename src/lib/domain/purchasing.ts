@@ -15,37 +15,59 @@ export type PurchasePriceInput = {
   cantidadFormatos: number;
   precioTotal: number;
   precioUnitarioFormato: number;
+  incluyeIva?: boolean;
+  tasaIva?: number;
 };
 
 export function resolvePurchasePrice(input: PurchasePriceInput) {
+  const tasaIva = input.tasaIva ?? 0.19;
+  const divisorIva = input.incluyeIva ? 1 + tasaIva : 1;
+
   if (input.cantidadFormatos <= 0) {
     return {
       precioTotal: 0,
       precioFormato: 0,
+      precioTotalIngresado: 0,
+      precioFormatoIngresado: 0,
       modoPrecio: "sin_precio" as const,
+      modoIva: input.incluyeIva ? ("iva_incluido" as const) : ("neto" as const),
     };
   }
 
   if (input.precioTotal > 0) {
+    const precioTotal = input.precioTotal / divisorIva;
+
     return {
-      precioTotal: input.precioTotal,
-      precioFormato: input.precioTotal / input.cantidadFormatos,
+      precioTotal,
+      precioFormato: precioTotal / input.cantidadFormatos,
+      precioTotalIngresado: input.precioTotal,
+      precioFormatoIngresado: input.precioTotal / input.cantidadFormatos,
       modoPrecio: "total" as const,
+      modoIva: input.incluyeIva ? ("iva_incluido" as const) : ("neto" as const),
     };
   }
 
   if (input.precioUnitarioFormato > 0) {
+    const precioFormato = input.precioUnitarioFormato / divisorIva;
+    const precioTotal = precioFormato * input.cantidadFormatos;
+
     return {
-      precioTotal: input.precioUnitarioFormato * input.cantidadFormatos,
-      precioFormato: input.precioUnitarioFormato,
+      precioTotal,
+      precioFormato,
+      precioTotalIngresado: input.precioUnitarioFormato * input.cantidadFormatos,
+      precioFormatoIngresado: input.precioUnitarioFormato,
       modoPrecio: "unitario" as const,
+      modoIva: input.incluyeIva ? ("iva_incluido" as const) : ("neto" as const),
     };
   }
 
   return {
     precioTotal: 0,
     precioFormato: 0,
+    precioTotalIngresado: 0,
+    precioFormatoIngresado: 0,
     modoPrecio: "sin_precio" as const,
+    modoIva: input.incluyeIva ? ("iva_incluido" as const) : ("neto" as const),
   };
 }
 

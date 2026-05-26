@@ -65,7 +65,10 @@ describe("purchase costing", () => {
     ).toEqual({
       precioTotal: 7600,
       precioFormato: 3800,
+      precioTotalIngresado: 7600,
+      precioFormatoIngresado: 3800,
       modoPrecio: "total",
+      modoIva: "neto",
     });
   });
 
@@ -79,7 +82,28 @@ describe("purchase costing", () => {
     ).toEqual({
       precioTotal: 3750,
       precioFormato: 1250,
+      precioTotalIngresado: 3750,
+      precioFormatoIngresado: 1250,
       modoPrecio: "unitario",
+      modoIva: "neto",
+    });
+  });
+
+  it("converts VAT-included purchase prices to net cost", () => {
+    expect(
+      resolvePurchasePrice({
+        cantidadFormatos: 1,
+        precioTotal: 11900,
+        precioUnitarioFormato: 0,
+        incluyeIva: true,
+      })
+    ).toEqual({
+      precioTotal: 10000,
+      precioFormato: 10000,
+      precioTotalIngresado: 11900,
+      precioFormatoIngresado: 11900,
+      modoPrecio: "total",
+      modoIva: "iva_incluido",
     });
   });
 

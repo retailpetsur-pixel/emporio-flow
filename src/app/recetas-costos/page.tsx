@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/emporio/sidebar";
+import { stockValue } from "@/lib/domain/inventory";
 import { convertQuantity, normalizeUnit } from "@/lib/domain/units";
 import { formatCurrencyCLP, parseDecimal } from "@/lib/format";
 import { createClient } from "@/lib/supabase-browser";
@@ -110,6 +111,10 @@ function ModuleCard({
 
 function money(v: number) {
   return formatCurrencyCLP(v);
+}
+
+function stockMoney(v: number) {
+  return formatCurrencyCLP(v, 0);
 }
 
 function decimal(value: unknown) {
@@ -297,6 +302,15 @@ function RecetasCostosContent() {
   useEffect(() => {
     cargar();
   }, []);
+
+  useEffect(() => {
+    const modulo = searchParams.get("modulo");
+
+    if (modulo === "insumos") {
+      setVistaModulo("insumos");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const id = searchParams.get("id");
@@ -714,10 +728,7 @@ for (const receta of recetasFinales) {
     (item) => Number(item.costo_unitario_uso ?? 0) <= 0
   );
   const valorStockInsumos = insumos.reduce(
-    (total, item) =>
-      total +
-      Number(item.stock_actual ?? 0) *
-        Number(item.costo_unitario_uso ?? 0),
+    (total, item) => total + stockValue(item),
     0
   );
   const alertasInsumos = [...insumosBajoMinimo, ...insumosSinCosto]
@@ -1553,12 +1564,12 @@ if (!familiaEncontrada) {
                     </p>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <p className="text-xs font-medium text-slate-500">
                         Recetas activas
                       </p>
-                      <p className="mt-1 text-2xl font-bold text-slate-900">
+                      <p className="mt-1 break-words text-2xl font-bold text-slate-900">
                         {recetas.length}
                       </p>
                     </div>
@@ -1583,7 +1594,7 @@ if (!familiaEncontrada) {
                         Stock valorizado
                       </p>
                       <p className="mt-1 text-2xl font-bold text-slate-900">
-                        {money(valorStockInsumos)}
+                        {stockMoney(valorStockInsumos)}
                       </p>
                     </div>
                   </div>
@@ -1596,7 +1607,7 @@ if (!familiaEncontrada) {
                     Focos de revisión
                   </h3>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
                     <button
                       type="button"
                       onClick={() => setVistaModulo("recetas")}
@@ -2606,7 +2617,7 @@ onClick={async () => {
                     </h2>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
                     <div className="rounded-lg bg-slate-50 px-3 py-2">
                       <p className="text-xs text-slate-500">Base</p>
                       <p className="mt-1 text-sm font-bold text-slate-900">
@@ -2842,7 +2853,7 @@ onClick={async () => {
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <p className="text-sm font-semibold text-slate-900">
-                        Stock valorizado inicial
+                        Stock inicial
                       </p>
                       <p className="mt-1 text-xl font-bold text-slate-900">
                         {stockActualPreview.toLocaleString("es-CL")}{" "}
@@ -2891,7 +2902,7 @@ onClick={async () => {
                   Descarga la base maestra, edita tus insumos y súbelos nuevamente.
                 </p>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="mt-5 grid gap-3 lg:grid-cols-3">
                   <button
                     type="button"
                     onClick={descargarPlantilla}
@@ -2937,8 +2948,8 @@ onClick={async () => {
 
                   <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
                     <p className="text-sm text-emerald-700">Stock valorizado</p>
-                    <p className="mt-1 text-2xl font-bold text-emerald-800">
-                      {money(valorStockInsumos)}
+                    <p className="mt-1 break-words text-2xl font-bold text-emerald-800">
+                      {stockMoney(valorStockInsumos)}
                     </p>
                   </div>
 
@@ -3148,7 +3159,7 @@ onClick={async () => {
                           </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                           <div className="rounded-lg bg-white/80 px-3 py-2">
                             <p className="text-xs text-slate-500">Stock actual</p>
                             <p className={bajoMinimo ? "font-bold text-red-700" : "font-bold text-slate-900"}>
