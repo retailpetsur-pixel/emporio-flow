@@ -42,7 +42,7 @@ const checks = [
   ["familias_productos", "familias_productos", "id,nombre,descripcion,activo"],
   ["familias_recetas", "familias_recetas", "id,nombre,descripcion,activo"],
   ["tipos_receta", "tipos_receta", "id,nombre,activo"],
-  ["insumos_costeo", "insumos_costeo", "id,nombre,familia_id,unidad_uso,costo_unitario_uso,unidad_referencia,cantidad_formato_compra,unidad_formato_compra,precio_referencia,costo_compra,costo_total_formato,factor_conversion_uso,stock_actual,stock_minimo,activo"],
+  ["insumos_costeo", "insumos_costeo", "id,nombre,familia_id,categoria,unidad_uso,costo_unitario_uso,unidad_referencia,cantidad_formato_compra,unidad_formato_compra,precio_referencia,costo_compra,costo_total_formato,factor_conversion_uso,stock_actual,stock_minimo,activo"],
   ["recetas", "recetas", "id,nombre,categoria,tipo_receta_id,familia_receta_id,porciones,merma_porcentaje,tiempo_minutos,precio_venta_actual,costo_total_calculado,costo_unitario_calculado,margen_actual_porcentaje,precio_sugerido,tipo_produccion,unidad_rinde,activo"],
   ["receta_detalle", "receta_detalle", "id,receta_id,tipo_item,insumo_id,subreceta_id,cantidad_uso,unidad_uso"],
   ["produccion_recetas", "produccion_recetas", "id,receta_id,fecha,cantidad_producida,costo_unitario_estimado,costo_total_estimado,observacion,created_at"],

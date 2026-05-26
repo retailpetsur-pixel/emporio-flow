@@ -2,6 +2,7 @@ import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
 import { purchasePriority, stockValue, suggestedFormats } from "@/lib/domain/inventory";
 import { calculatePurchaseCost, resolvePurchasePrice } from "@/lib/domain/purchasing";
+import { convertQuantity, unitFactor } from "@/lib/domain/units";
 import { formatCurrencyCLP, parseDecimal } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
@@ -13,6 +14,7 @@ type Insumo = {
   id: string;
   nombre: string;
   familia_id: string | null;
+  categoria: string | null;
   unidad_uso: string | null;
   unidad_referencia: string | null;
   unidad_formato_compra: string | null;
@@ -24,6 +26,11 @@ type Insumo = {
   stock_minimo: number | null;
 };
 
+type Familia = {
+  id: string;
+  nombre: string;
+};
+
 function money(v: number) {
   return formatCurrencyCLP(v, 0);
 }
@@ -32,10 +39,17 @@ function decimal(value: FormDataEntryValue | null) {
   return parseDecimal(value);
 }
 
+function defaultUnidadUso(unidadFormato: string) {
+  if (unidadFormato === "kg") return "grs";
+  if (unidadFormato === "litros") return "ml";
+  return unidadFormato || "un";
+}
+
 async function registrarCompra(formData: FormData) {
   "use server";
 
-  const insumoId = String(formData.get("insumo_id") || "");
+  const modoInsumo = String(formData.get("modo_insumo") || "existente");
+  let insumoId = String(formData.get("insumo_id") || "");
   const cantidadFormatos = decimal(formData.get("cantidad_formatos"));
   const cantidadPorFormato = decimal(formData.get("cantidad_por_formato"));
   const unidadFormato = String(formData.get("unidad_formato") || "");
@@ -48,9 +62,15 @@ async function registrarCompra(formData: FormData) {
     precioUnitarioFormato,
     incluyeIva,
   });
+  const nombreNuevoInsumo = String(formData.get("nuevo_insumo_nombre") || "").trim();
+  const familiaNuevoInsumo = String(formData.get("nuevo_insumo_familia_id") || "");
+  const subfamiliaNuevoInsumo = String(formData.get("nuevo_insumo_subfamilia") || "")
+    .trim();
+  const unidadUsoNuevoInsumo = String(
+    formData.get("nuevo_insumo_unidad_uso") || defaultUnidadUso(unidadFormato)
+  );
 
   if (
-    !insumoId ||
     cantidadFormatos <= 0 ||
     cantidadPorFormato <= 0 ||
     !unidadFormato ||
@@ -61,17 +81,71 @@ async function registrarCompra(formData: FormData) {
     );
   }
 
-  const { data: insumo, error: readError } = await supabase
-    .from("insumos_costeo")
-    .select(
-      "id,nombre,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
-    )
-    .eq("id", insumoId)
-    .single();
+  let item: Insumo;
 
-  if (readError) throw new Error(readError.message);
+  if (modoInsumo === "nuevo") {
+    if (!nombreNuevoInsumo || !familiaNuevoInsumo) {
+      throw new Error("Completa nombre y familia del nuevo insumo.");
+    }
 
-  const item = insumo as Insumo;
+    const cantidadUsoPorFormato = convertQuantity(
+      cantidadPorFormato,
+      unidadFormato,
+      unidadUsoNuevoInsumo
+    );
+
+    if (cantidadUsoPorFormato <= 0) {
+      throw new Error("La unidad de uso del nuevo insumo no es válida.");
+    }
+
+    const { data: nuevoInsumo, error: insertError } = await supabase
+      .from("insumos_costeo")
+      .insert([
+        {
+          nombre: nombreNuevoInsumo,
+          familia_id: familiaNuevoInsumo,
+          categoria: subfamiliaNuevoInsumo || null,
+          precio_referencia: precioFormato,
+          unidad_referencia: unidadFormato,
+          cantidad_formato_compra: cantidadPorFormato,
+          unidad_formato_compra: unidadFormato,
+          costo_total_formato: precioFormato,
+          unidad_uso: unidadUsoNuevoInsumo,
+          factor_conversion_uso: unitFactor(unidadFormato, unidadUsoNuevoInsumo),
+          costo_unitario_uso: precioFormato / cantidadUsoPorFormato,
+          unidad_compra: unidadFormato,
+          cantidad_compra: cantidadPorFormato,
+          costo_compra: precioFormato,
+          stock_actual: 0,
+          stock_minimo: 0,
+          activo: true,
+        },
+      ])
+      .select(
+        "id,nombre,familia_id,categoria,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
+      )
+      .single();
+
+    if (insertError) throw new Error(insertError.message);
+    item = nuevoInsumo as Insumo;
+    insumoId = item.id;
+  } else {
+    if (!insumoId) {
+      throw new Error("Selecciona un insumo existente o crea uno nuevo.");
+    }
+
+    const { data: insumo, error: readError } = await supabase
+      .from("insumos_costeo")
+      .select(
+        "id,nombre,familia_id,categoria,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
+      )
+      .eq("id", insumoId)
+      .single();
+
+    if (readError) throw new Error(readError.message);
+    item = insumo as Insumo;
+  }
+
   const unidadStock =
     item.unidad_referencia ?? item.unidad_formato_compra ?? unidadFormato;
   const unidadUso = item.unidad_uso ?? unidadStock;
@@ -158,15 +232,26 @@ export default async function ComprasPage({
   const params = await searchParams;
   const mensaje = params?.mensaje;
   const estado = params?.estado === "ok" ? "ok" : "error";
-  const { data, error } = await supabase
-    .from("insumos_costeo")
-    .select(
-      "id,nombre,familia_id,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
-    )
-    .eq("activo", true)
-    .order("nombre", { ascending: true });
+  const [
+    { data, error },
+    { data: familiasData, error: familiasError },
+  ] = await Promise.all([
+    supabase
+      .from("insumos_costeo")
+      .select(
+        "id,nombre,familia_id,categoria,unidad_uso,unidad_referencia,unidad_formato_compra,cantidad_formato_compra,precio_referencia,costo_compra,costo_unitario_uso,stock_actual,stock_minimo"
+      )
+      .eq("activo", true)
+      .order("nombre", { ascending: true }),
+    supabase
+      .from("familias_productos")
+      .select("id,nombre")
+      .eq("activo", true)
+      .order("nombre", { ascending: true }),
+  ]);
 
   const insumos: Insumo[] = data ?? [];
+  const familias: Familia[] = familiasData ?? [];
   const sugeridos = insumos.filter(
     (item) =>
       Number(item.stock_minimo ?? 0) > 0 &&
@@ -231,11 +316,45 @@ export default async function ComprasPage({
                 </p>
 
                 <form action={registrarCompra} className="mt-4 grid gap-4 sm:mt-5">
+                  <fieldset className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <legend className="px-1 text-sm font-semibold text-slate-700">
+                      Tipo de insumo
+                    </legend>
+                    <label className="flex items-start gap-3 text-sm text-slate-700">
+                      <input
+                        name="modo_insumo"
+                        type="radio"
+                        value="existente"
+                        defaultChecked
+                        className="mt-1"
+                      />
+                      <span>
+                        <strong>Seleccionar existente</strong>
+                        <span className="block text-xs text-slate-500">
+                          Para compras de insumos ya creados.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-3 text-sm text-slate-700">
+                      <input
+                        name="modo_insumo"
+                        type="radio"
+                        value="nuevo"
+                        className="mt-1"
+                      />
+                      <span>
+                        <strong>Nuevo insumo</strong>
+                        <span className="block text-xs text-slate-500">
+                          Crea el maestro y registra esta entrada en el mismo paso.
+                        </span>
+                      </span>
+                    </label>
+                  </fieldset>
+
                   <label className="grid gap-2 text-sm font-semibold text-slate-700">
-                    Insumo
+                    Insumo existente
                     <select
                       name="insumo_id"
-                      required
                       className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
                     >
                       <option value="">Seleccionar insumo</option>
@@ -246,6 +365,68 @@ export default async function ComprasPage({
                       ))}
                     </select>
                   </label>
+
+                  <div className="grid gap-3 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 p-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-emerald-900">
+                        Crear nuevo insumo
+                      </h3>
+                      <p className="mt-1 text-xs font-semibold text-emerald-700">
+                        Usa este bloque solo si marcaste Nuevo insumo.
+                      </p>
+                    </div>
+
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Nombre del insumo
+                      <input
+                        name="nuevo_insumo_nombre"
+                        placeholder="Ej: Queso mozzarella"
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                      />
+                    </label>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                        Familia
+                        <select
+                          name="nuevo_insumo_familia_id"
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                        >
+                          <option value="">Seleccionar familia</option>
+                          {familias.map((familia) => (
+                            <option key={familia.id} value={familia.id}>
+                              {familia.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                        Subfamilia
+                        <input
+                          name="nuevo_insumo_subfamilia"
+                          placeholder="Opcional"
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                      Unidad de uso en receta
+                      <select
+                        name="nuevo_insumo_unidad_uso"
+                        defaultValue=""
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal"
+                      >
+                        <option value="">Automática según formato</option>
+                        <option value="grs">grs</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                        <option value="litros">litros</option>
+                        <option value="un">un</option>
+                      </select>
+                    </label>
+                  </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="grid gap-2 text-sm font-semibold text-slate-700">
@@ -387,9 +568,9 @@ export default async function ComprasPage({
                   Compras sugeridas por stock mínimo
                 </h2>
 
-                {error ? (
+                {error || familiasError ? (
                   <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    Error al cargar compras: {error.message}
+                    Error al cargar compras: {(error ?? familiasError)?.message}
                   </div>
                 ) : (
                   <div className="mt-5 hidden max-h-[640px] overflow-auto rounded-xl border border-slate-200 md:block">
@@ -460,7 +641,7 @@ export default async function ComprasPage({
                   </div>
                 )}
 
-                {!error ? (
+                {!error && !familiasError ? (
                   <div className="mt-4 grid gap-3 md:hidden">
                     {sugeridos.length === 0 ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
