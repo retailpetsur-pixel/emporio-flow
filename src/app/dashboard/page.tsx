@@ -1,6 +1,10 @@
 import DashboardCardGrid, {
   type DashboardCardItem,
 } from "@/components/emporio/dashboard-card-grid";
+import {
+  defaultAppearanceSettings,
+  parseAppearanceSettings,
+} from "@/lib/appearance";
 import { supabase } from "@/lib/supabase";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
@@ -120,6 +124,7 @@ export default async function DashboardPage() {
     { data: trabajadores, error: trabajadoresError },
     { data: turnos, error: turnosError },
     { data: permisos, error: permisosError },
+    { data: apariencia },
   ] = await Promise.all([
     supabase.from("productos").select("*").order("created_at", { ascending: true }),
     supabase
@@ -147,7 +152,15 @@ export default async function DashboardPage() {
       .from("solicitudes_permiso")
       .select("*")
       .order("created_at", { ascending: false }),
+    authClient
+      .from("configuracion_sistema")
+      .select("valor")
+      .eq("clave", "apariencia")
+      .maybeSingle(),
   ]);
+  const appearanceSettings = apariencia?.valor
+    ? parseAppearanceSettings(apariencia.valor)
+    : defaultAppearanceSettings;
 
   const productosList = productos ?? [];
   const insumosCosteoList = insumosCosteo ?? [];
@@ -463,13 +476,16 @@ export default async function DashboardPage() {
                     Módulos del sistema
                   </h3>
                   <p className="text-sm text-slate-500">
-                    Arrastra las cards para ordenar tu pantalla.
+                    Orden y aspecto definidos desde Configuración.
                   </p>
                 </div>
               </div>
 
               <div className="mt-5">
-                <DashboardCardGrid cards={dashboardModules} />
+                <DashboardCardGrid
+                  cards={dashboardModules}
+                  appearance={appearanceSettings}
+                />
               </div>
             </div>
 

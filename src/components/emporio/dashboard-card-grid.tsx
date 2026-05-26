@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type AppearanceSettings, defaultAppearanceSettings } from "@/lib/appearance";
 
 export type DashboardCardItem = {
   id: string;
@@ -12,8 +12,6 @@ export type DashboardCardItem = {
   icon: string;
   tone: "emerald" | "amber" | "sky" | "violet" | "slate" | "rose" | "cyan";
 };
-
-const storageKey = "emporio-flow-dashboard-card-order";
 
 const toneStyles: Record<
   DashboardCardItem["tone"],
@@ -70,92 +68,82 @@ function applySavedOrder(cards: DashboardCardItem[], order: string[]) {
   return [...ordered, ...missing];
 }
 
+const cardSizeStyles = {
+  compacta: {
+    card: "p-4",
+    body: "gap-3 sm:min-h-44",
+    metric: "text-2xl sm:text-3xl",
+  },
+  normal: {
+    card: "p-4 sm:min-h-64 sm:p-5",
+    body: "gap-4 sm:min-h-56 sm:gap-5",
+    metric: "text-3xl sm:text-4xl",
+  },
+  amplia: {
+    card: "p-5 sm:min-h-72 sm:p-6",
+    body: "gap-5 sm:min-h-64",
+    metric: "text-4xl sm:text-5xl",
+  },
+};
+
+const iconSizeStyles = {
+  normal: "h-14 w-14 text-2xl sm:h-16 sm:w-16 sm:text-3xl",
+  grande: "h-16 w-16 text-3xl sm:h-20 sm:w-20 sm:text-4xl",
+  extra: "h-20 w-20 text-4xl sm:h-24 sm:w-24 sm:text-5xl",
+};
+
+const aspectStyles = {
+  auto: "",
+  cuadrada: "sm:aspect-square",
+  horizontal: "sm:min-h-48",
+};
+
 export default function DashboardCardGrid({
   cards,
+  appearance = defaultAppearanceSettings,
 }: {
   cards: DashboardCardItem[];
+  appearance?: AppearanceSettings;
 }) {
-  const [orderedCards, setOrderedCards] = useState(cards);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const savedOrder = window.localStorage.getItem(storageKey);
-
-    if (!savedOrder) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(savedOrder);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOrderedCards(Array.isArray(parsed) ? applySavedOrder(cards, parsed) : cards);
-    } catch {
-      setOrderedCards(cards);
-    }
-  }, [cards]);
-
-  const orderIds = useMemo(
-    () => orderedCards.map((card) => card.id),
-    [orderedCards]
-  );
-
-  function moveCard(targetId: string) {
-    if (!draggingId || draggingId === targetId) return;
-
-    const fromIndex = orderIds.indexOf(draggingId);
-    const toIndex = orderIds.indexOf(targetId);
-
-    if (fromIndex < 0 || toIndex < 0) return;
-
-    const next = [...orderedCards];
-    const [moved] = next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, moved);
-    setOrderedCards(next);
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify(next.map((card) => card.id))
-    );
-  }
+  const orderedCards = applySavedOrder(cards, appearance.dashboardOrder);
+  const size = cardSizeStyles[appearance.cardSize];
+  const showDescription = appearance.textDensity !== "resumida";
+  const descriptionClass =
+    appearance.textDensity === "detallada"
+      ? "text-sm leading-6 text-slate-600"
+      : "line-clamp-2 text-sm leading-6 text-slate-600";
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {orderedCards.map((card) => {
         const styles = toneStyles[card.tone];
-        const isDragging = draggingId === card.id;
 
         return (
           <article
             key={card.id}
-            draggable
-            onDragStart={() => setDraggingId(card.id)}
-            onDragEnd={() => setDraggingId(null)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => moveCard(card.id)}
-            className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition sm:min-h-64 sm:p-5 ${styles.ring} ${
-              isDragging ? "scale-[0.98] opacity-60" : "hover:-translate-y-0.5"
-            }`}
+            className={`min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm transition ${size.card} ${aspectStyles[appearance.cardAspect]} ${styles.ring} hover:-translate-y-0.5`}
           >
-            <div className="flex h-full cursor-grab flex-col justify-between gap-4 active:cursor-grabbing sm:min-h-56 sm:gap-5">
+            <div className={`flex h-full flex-col justify-between ${size.body}`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h4 className="text-lg font-bold text-slate-900">
                     {card.title}
                   </h4>
-                  <p className="mt-2 break-words text-3xl font-bold tracking-tight text-slate-950 sm:mt-3 sm:text-4xl">
+                  <p className={`mt-2 break-words font-bold tracking-tight text-slate-950 sm:mt-3 ${size.metric}`}>
                     {card.metric}
                   </p>
                 </div>
                 <span
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl sm:h-16 sm:w-16 sm:text-3xl ${styles.icon}`}
+                  className={`flex shrink-0 items-center justify-center rounded-2xl ${iconSizeStyles[appearance.iconSize]} ${styles.icon}`}
                   aria-hidden="true"
                 >
                   {card.icon}
                 </span>
               </div>
 
-              <p className="text-sm leading-6 text-slate-600">
-                {card.description}
-              </p>
+              {showDescription ? (
+                <p className={descriptionClass}>{card.description}</p>
+              ) : null}
 
               <a
                 href={card.href}

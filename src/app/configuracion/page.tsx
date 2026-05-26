@@ -1,5 +1,11 @@
 import Sidebar from "@/components/emporio/sidebar";
 import Topbar from "@/components/emporio/topbar";
+import AppearanceSettingsForm from "@/components/emporio/appearance-settings-form";
+import { type DashboardCardItem } from "@/components/emporio/dashboard-card-grid";
+import {
+  defaultAppearanceSettings,
+  parseAppearanceSettings,
+} from "@/lib/appearance";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { supabase as publicSupabase } from "@/lib/supabase";
@@ -29,6 +35,79 @@ type PermisoRol = {
   rol: Role;
   modulos: string[];
 };
+
+const dashboardConfigCards: DashboardCardItem[] = [
+  {
+    id: "recetas-costos",
+    title: "Recetas y costos",
+    description: "Costos unitarios, márgenes, precios sugeridos y subrecetas.",
+    href: "/recetas-costos",
+    metric: "Costeo",
+    action: "Abrir recetas",
+    icon: "📈",
+    tone: "sky",
+  },
+  {
+    id: "inventario",
+    title: "Inventario",
+    description: "Stock valorizado, mínimos, conteo físico y alertas.",
+    href: "/inventario",
+    metric: "Stock",
+    action: "Abrir inventario",
+    icon: "📦",
+    tone: "emerald",
+  },
+  {
+    id: "produccion",
+    title: "Producción",
+    description: "Planificación semanal, producción diaria, vendibles y mermas.",
+    href: "/produccion",
+    metric: "Prod.",
+    action: "Abrir producción",
+    icon: "🏭",
+    tone: "cyan",
+  },
+  {
+    id: "personal",
+    title: "Personal",
+    description: "Trabajadores, turnos, asistencia y solicitudes de permiso.",
+    href: "/usuarios",
+    metric: "Equipo",
+    action: "Ver personal",
+    icon: "👥",
+    tone: "violet",
+  },
+  {
+    id: "configuracion",
+    title: "Configuración",
+    description: "Usuarios, perfiles, permisos y parámetros del sistema.",
+    href: "/configuracion",
+    metric: "Admin",
+    action: "Configurar",
+    icon: "⚙️",
+    tone: "slate",
+  },
+  {
+    id: "compras",
+    title: "Compras",
+    description: "Reposición sugerida, entradas reales y costo promedio.",
+    href: "/compras",
+    metric: "Compras",
+    action: "Abrir compras",
+    icon: "🧾",
+    tone: "amber",
+  },
+  {
+    id: "biblioteca",
+    title: "Biblioteca",
+    description: "Documentos, referencias internas y material operativo.",
+    href: "/biblioteca",
+    metric: "Base",
+    action: "Abrir biblioteca",
+    icon: "📚",
+    tone: "rose",
+  },
+];
 
 type ConfiguracionPageProps = {
   searchParams?: Promise<{
@@ -421,6 +500,47 @@ async function guardarPermisosRol(formData: FormData) {
   volverConfiguracion("ok", `Permisos de ${roleLabels[rol]} guardados.`);
 }
 
+async function guardarAparienciaGlobal(formData: FormData) {
+  "use server";
+
+  const { role } = await obtenerRolActual();
+
+  if (role !== "admin" && role !== "gerencia") {
+    volverConfiguracion("error", "No tienes permisos para modificar apariencia.");
+  }
+
+  const dashboardOrder = String(formData.get("dashboard_order") || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const valor = parseAppearanceSettings({
+    dashboardOrder,
+    cardSize: String(formData.get("card_size") || ""),
+    iconSize: String(formData.get("icon_size") || ""),
+    textDensity: String(formData.get("text_density") || ""),
+    cardAspect: String(formData.get("card_aspect") || ""),
+  });
+
+  const supabaseAdmin = createAdminClient();
+  const supabase = supabaseAdmin ?? (await createServerClient());
+
+  const { error } = await supabase
+    .from("configuracion_sistema")
+    .upsert({ clave: "apariencia", valor }, { onConflict: "clave" });
+
+  if (error) {
+    volverConfiguracion(
+      "error",
+      `No pude guardar apariencia. Ejecuta sql/configuracion_sistema.sql en Supabase: ${error.message}`
+    );
+  }
+
+  revalidatePath("/configuracion");
+  revalidatePath("/dashboard");
+  volverConfiguracion("ok", "Apariencia global guardada para todos.");
+}
+
 function StatCard({
   label,
   value,
@@ -546,6 +666,16 @@ export default async function ConfiguracionPage({
       permisosPorRol.set(permiso.rol, normalizePermissionHrefs(permiso.modulos));
     });
 
+  const { data: aparienciaGuardada, error: aparienciaError } =
+    await consultaPerfiles
+      .from("configuracion_sistema")
+      .select("valor")
+      .eq("clave", "apariencia")
+      .maybeSingle();
+  const appearanceSettings = aparienciaGuardada?.valor
+    ? parseAppearanceSettings(aparienciaGuardada.valor)
+    : defaultAppearanceSettings;
+
   const activos = usuariosConfigurables.filter((perfil) => perfil.activo).length;
   return (
     <main className="min-h-screen bg-slate-100">
@@ -602,6 +732,44 @@ export default async function ConfiguracionPage({
                 helper="Usuarios creados en Supabase Auth."
               />
             </div>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">
+                    Aspecto general
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                    Configuración de ventanas
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                    Define el tamaño visual, tamaño de iconos, densidad de texto
+                    y orden global de las cards principales. Estos cambios se
+                    aplican para todos los usuarios.
+                  </p>
+                </div>
+                <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                  Global
+                </span>
+              </div>
+
+              {aparienciaError ? (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  Falta crear la tabla de configuración global. Ejecuta{" "}
+                  <code className="font-bold">sql/configuracion_sistema.sql</code>{" "}
+                  en Supabase para activar guardado compartido.
+                </div>
+              ) : null}
+
+              <div className="mt-5">
+                <AppearanceSettingsForm
+                  action={guardarAparienciaGlobal}
+                  cards={dashboardConfigCards}
+                  settings={appearanceSettings}
+                  disabled={!puedeConfigurar || Boolean(aparienciaError)}
+                />
+              </div>
+            </section>
 
             <section className="grid gap-5 2xl:grid-cols-[380px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
